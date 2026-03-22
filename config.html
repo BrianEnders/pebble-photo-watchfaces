@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Photo Watchface</title>
+<style>
+  :root {
+    --bg: #1a1a1a; --surface: #242424; --border: #383838;
+    --accent: #c8a55a; --text: #f0ede6; --muted: #888;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text);
+         font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+         font-size: 15px; padding: 0 0 40px; }
+
+  header { background: var(--surface); border-bottom: 1px solid var(--border);
+           padding: 16px 20px; }
+  header h1 { font-size: 17px; font-weight: 600; }
+  header p  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .card { margin: 16px; background: var(--surface);
+          border: 1px solid var(--border); border-radius: 10px;
+          overflow: hidden; }
+  .card-title { font-size: 11px; font-weight: 600; letter-spacing: .08em;
+                text-transform: uppercase; color: var(--muted);
+                padding: 12px 16px 6px; }
+
+  /* Drop zone */
+  .dropzone { margin: 0 16px; border: 2px dashed var(--border);
+              border-radius: 10px; padding: 28px 16px;
+              text-align: center; cursor: pointer; position: relative;
+              transition: border-color .2s; }
+  .dropzone.over { border-color: var(--accent); }
+  .dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .dz-icon  { font-size: 32px; margin-bottom: 8px; }
+  .dz-label { font-size: 14px; }
+  .dz-hint  { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* Watch preview */
+  .preview-wrap { display: none; flex-direction: column;
+                  align-items: center; gap: 12px; padding: 16px; }
+  .preview-wrap.show { display: flex; }
+  .watch-frame { width: 148px; height: 148px; border-radius: 50%;
+                 border: 5px solid #7a5c2e;
+                 box-shadow: 0 0 0 2px #c8a55a, 0 0 0 4px #7a5c2e;
+                 overflow: hidden; background: #000; position: relative; }
+  .watch-frame canvas { width: 100%; height: 100%; display: block; }
+  .watch-time { position: absolute; bottom: 32px; left: 0; right: 0;
+                text-align: center; font-size: 20px; font-weight: 700;
+                color: #fff; pointer-events: none;
+                text-shadow: 0 1px 4px rgba(0,0,0,.8); }
+
+  .meta { font-size: 12px; color: var(--muted); text-align: center; }
+
+  /* Dither toggle */
+  .row { display: flex; align-items: center; justify-content: space-between;
+         padding: 12px 16px; border-top: 1px solid var(--border); }
+  .row-label { font-size: 14px; }
+  .row-hint  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  select { background: var(--bg); color: var(--text);
+           border: 1px solid var(--border); border-radius: 6px;
+           padding: 6px 10px; font-size: 13px; }
+
+  /* Progress */
+  .prog-wrap { display: none; padding: 12px 16px; }
+  .prog-wrap.show { display: block; }
+  .prog-bar { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .prog-fill { height: 100%; background: var(--accent); border-radius: 3px;
+               width: 0; transition: width .2s; }
+  .prog-label { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 10px; padding: 16px; }
+  .btn { flex: 1; padding: 13px; border-radius: 10px; font-size: 15px;
+         font-weight: 600; cursor: pointer; border: none; }
+  .btn-cancel { background: var(--surface); color: var(--text);
+                border: 1px solid var(--border); }
+  .btn-save   { background: var(--accent); color: #1a1100; }
+  .btn-save:disabled { opacity: .4; cursor: not-allowed; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Photo Watchface</h1>
+  <p>Pebble Time Round · 180×180 · 64 colors</p>
+</header>
+
+<div class="dropzone" id="dz">
+  <input type="file" id="fileInput" accept="image/*">
+  <div class="dz-icon">🖼️</div>
+  <div class="dz-label">Tap to choose a photo</div>
+  <div class="dz-hint">Any size — will be cropped to square and scaled to 180×180</div>
+</div>
+
+<div class="preview-wrap" id="previewWrap">
+  <div class="watch-frame">
+    <canvas id="previewCanvas" width="148" height="148"></canvas>
+    <div class="watch-time" id="clockDisplay">12:00</div>
+  </div>
+  <div class="meta" id="metaText">—</div>
+</div>
+
+<div class="card" id="optCard" style="display:none">
+  <div class="card-title">Processing</div>
+  <div class="row">
+    <div>
+      <div class="row-label">Dither mode</div>
+      <div class="row-hint">How to map photo to Pebble's 64-color palette</div>
+    </div>
+    <select id="ditherSel">
+      <option value="fs">Floyd–Steinberg</option>
+      <option value="nearest">Nearest color</option>
+    </select>
+  </div>
+</div>
+
+<div class="prog-wrap" id="progWrap">
+  <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+  <div class="prog-label" id="progLabel">Processing…</div>
+</div>
+
+<div class="btn-row">
+  <button class="btn btn-cancel" id="btnCancel">Cancel</button>
+  <button class="btn btn-save"   id="btnSave" disabled>Save</button>
+</div>
+
+<canvas id="work" style="display:none" width="180" height="180"></canvas>
+
+<script>
+// ── Pebble 64-color palette (GColor8, 2 bits per channel) ──────────────────
+var PALETTE = (function() {
+  var p = [];
+  for (var r = 0; r < 4; r++)
+  for (var g = 0; g < 4; g++)
+  for (var b = 0; b < 4; b++) {
+    p.push({ r: r*85, g: g*85, b: b*85,
+             idx: 0xC0 | (r<<4) | (g<<2) | b });
+  }
+  return p;
+}());
+
+function nearestColor(r, g, b) {
+  var best = PALETTE[0], bd = 1e9;
+  for (var i = 0; i < PALETTE.length; i++) {
+    var c = PALETTE[i];
+    var d = (r-c.r)*(r-c.r)*0.299 + (g-c.g)*(g-c.g)*0.587 + (b-c.b)*(b-c.b)*0.114;
+    if (d < bd) { bd = d; best = c; }
+  }
+  return best;
+}
+
+function floydSteinberg(data, w, h) {
+  var rs = new Float32Array(w*h), gs = new Float32Array(w*h), bs = new Float32Array(w*h);
+  for (var i = 0; i < w*h; i++) { rs[i]=data[i*4]; gs[i]=data[i*4+1]; bs[i]=data[i*4+2]; }
+  var out = new Uint8Array(w*h);
+  for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) {
+    var i = y*w+x;
+    var c = nearestColor(Math.max(0,Math.min(255,rs[i])), Math.max(0,Math.min(255,gs[i])), Math.max(0,Math.min(255,bs[i])));
+    out[i] = c.idx;
+    var er=rs[i]-c.r, eg=gs[i]-c.g, eb=bs[i]-c.b;
+    if(x+1<w)     { rs[i+1]+=er*7/16; gs[i+1]+=eg*7/16; bs[i+1]+=eb*7/16; }
+    if(y+1<h&&x>0){ rs[i+w-1]+=er*3/16; gs[i+w-1]+=eg*3/16; bs[i+w-1]+=eb*3/16; }
+    if(y+1<h)     { rs[i+w]+=er*5/16; gs[i+w]+=eg*5/16; bs[i+w]+=eb*5/16; }
+    if(y+1<h&&x+1<w){ rs[i+w+1]+=er/16; gs[i+w+1]+=eg/16; bs[i+w+1]+=eb/16; }
+  }
+  return out;
+}
+
+function nearestOnly(data, w, h) {
+  var out = new Uint8Array(w*h);
+  for (var i = 0; i < w*h; i++) out[i] = nearestColor(data[i*4],data[i*4+1],data[i*4+2]).idx;
+  return out;
+}
+
+// ── State ──────────────────────────────────────────────────────────────────
+var processedPixels = null;
+var currentFile = null;
+
+// ── Clock overlay ──────────────────────────────────────────────────────────
+function updateClock() {
+  var now = new Date(), h = now.getHours()%12||12, m = now.getMinutes();
+  document.getElementById('clockDisplay').textContent = h + ':' + (m<10?'0':'')+m;
+}
+updateClock();
+setInterval(updateClock, 5000);
+
+// ── Progress helpers ───────────────────────────────────────────────────────
+function showProg(visible, pct, label) {
+  var w = document.getElementById('progWrap');
+  w.className = 'prog-wrap' + (visible ? ' show' : '');
+  if (visible) {
+    document.getElementById('progFill').style.width = pct + '%';
+    document.getElementById('progLabel').textContent = label;
+  }
+}
+
+// ── Render processed pixels into preview canvas ────────────────────────────
+function renderPreview(pixels, w, h) {
+  var canvas = document.getElementById('previewCanvas');
+  var ctx = canvas.getContext('2d');
+  var img = ctx.createImageData(w, h);
+  for (var i = 0; i < w*h; i++) {
+    var px = pixels[i];
+    img.data[i*4]   = ((px>>4)&3)*85;
+    img.data[i*4+1] = ((px>>2)&3)*85;
+    img.data[i*4+2] = (px&3)*85;
+    img.data[i*4+3] = 255;
+  }
+  // Scale 180x180 into 148x148 preview canvas
+  var tmp = document.createElement('canvas'); tmp.width=180; tmp.height=180;
+  tmp.getContext('2d').putImageData(img,0,0);
+  ctx.drawImage(tmp, 0, 0, 180, 180, 0, 0, 148, 148);
+}
+
+// ── Main processing pipeline ───────────────────────────────────────────────
+function processImage(file) {
+  currentFile = file;
+  document.getElementById('btnSave').disabled = true;
+  showProg(true, 10, 'Loading image…');
+
+  var img = new Image();
+  var url = URL.createObjectURL(file);
+  img.onload = function() {
+    URL.revokeObjectURL(url);
+    showProg(true, 35, 'Scaling to 180×180…');
+
+    var work = document.getElementById('work');
+    var ctx  = work.getContext('2d');
+    var size = Math.min(img.width, img.height);
+    var sx   = (img.width  - size) / 2;
+    var sy   = (img.height - size) / 2;
+    ctx.drawImage(img, sx, sy, size, size, 0, 0, 180, 180);
+    var raw = ctx.getImageData(0, 0, 180, 180).data;
+
+    showProg(true, 55, 'Mapping to Pebble palette…');
+    setTimeout(function() {
+      var mode = document.getElementById('ditherSel').value;
+      var pixels = mode === 'fs' ? floydSteinberg(raw,180,180) : nearestOnly(raw,180,180);
+      processedPixels = pixels;
+
+      renderPreview(pixels, 180, 180);
+      document.getElementById('previewWrap').className = 'preview-wrap show';
+      document.getElementById('optCard').style.display = '';
+      document.getElementById('metaText').textContent =
+        '180×180 · ' + (pixels.length/1024).toFixed(1) + ' KB · ' +
+        (mode === 'fs' ? 'Floyd–Steinberg dither' : 'Nearest color');
+
+      showProg(false);
+      document.getElementById('btnSave').disabled = false;
+    }, 30);
+  };
+  img.onerror = function() { showProg(false); alert('Could not load image.'); };
+  img.src = url;
+}
+
+// ── File input ─────────────────────────────────────────────────────────────
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  if (e.target.files[0]) processImage(e.target.files[0]);
+});
+
+var dz = document.getElementById('dz');
+dz.addEventListener('dragover',  function(e){ e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', function(){ dz.classList.remove('over'); });
+dz.addEventListener('drop', function(e) {
+  e.preventDefault(); dz.classList.remove('over');
+  if (e.dataTransfer.files[0]) processImage(e.dataTransfer.files[0]);
+});
+
+document.getElementById('ditherSel').addEventListener('change', function() {
+  if (currentFile) processImage(currentFile);
+});
+
+// ── Return URL helper (works for real watch AND emulator) ──────────────────
+function getReturnURL() {
+  var query = location.search.substring(1);
+  var vars  = query.split('&');
+  for (var i = 0; i < vars.length; i++) {
+    var pair = vars[i].split('=');
+    if (pair[0] === 'return_to') return decodeURIComponent(pair[1]);
+  }
+  return 'pebblejs://close#';
+}
+
+// ── Save ───────────────────────────────────────────────────────────────────
+document.getElementById('btnSave').addEventListener('click', function() {
+  if (!processedPixels) return;
+
+  showProg(true, 80, 'Encoding…');
+  setTimeout(function() {
+    // Convert Uint8Array to plain Array so JSON.stringify works correctly
+    var pixelArray = Array.prototype.slice.call(processedPixels);
+    var payload = encodeURIComponent(JSON.stringify({
+      action:  'photo',
+      pixels:  pixelArray,
+      width:   180,
+      height:  180
+    }));
+    showProg(false);
+    document.location = getReturnURL() + payload;
+  }, 30);
+});
+
+// ── Cancel ─────────────────────────────────────────────────────────────────
+document.getElementById('btnCancel').addEventListener('click', function() {
+  document.location = getReturnURL() + encodeURIComponent(JSON.stringify({ action: 'cancel' }));
+});
+</script>
+</body>
+</html>
