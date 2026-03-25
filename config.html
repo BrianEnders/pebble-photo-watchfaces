@@ -5,84 +5,450 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Photo Watchface</title>
 <style>
-  :root { --bg:#1a1a1a; --surface:#242424; --border:#383838; --accent:#c8a55a; --text:#f0ede6; --muted:#888; }
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:15px; padding:0 0 40px; }
-  header { background:var(--surface); border-bottom:1px solid var(--border); padding:16px 20px; }
-  header h1 { font-size:17px; font-weight:600; }
-  header p  { font-size:12px; color:var(--muted); margin-top:2px; }
-  #log { margin:10px 16px; background:#0a0a0a; border:1px solid #333; border-radius:8px; padding:8px 10px; font-family:monospace; font-size:11px; color:#0f0; max-height:140px; overflow-y:auto; white-space:pre-wrap; word-break:break-all; }
-  .dropzone { margin:10px 16px; border:2px dashed var(--border); border-radius:10px; padding:24px 16px; text-align:center; cursor:pointer; position:relative; }
-  .dropzone input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
-  .dz-icon { font-size:28px; margin-bottom:6px; }
-  .dz-label { font-size:14px; }
-  .dz-hint  { font-size:12px; color:var(--muted); margin-top:4px; }
-  .preview-wrap { display:none; flex-direction:column; align-items:center; gap:10px; padding:10px 16px; }
-  .preview-wrap.show { display:flex; }
-  .watch-frame { width:120px; height:120px; border-radius:50%; border:4px solid #7a5c2e; box-shadow:0 0 0 2px #c8a55a; overflow:hidden; background:#000; }
-  .watch-frame canvas { width:100%; height:100%; display:block; }
-  .meta { font-size:11px; color:var(--muted); text-align:center; }
-  .prog-wrap { display:none; padding:0 16px 10px; }
-  .prog-wrap.show { display:block; }
-  .prog-bar { height:6px; background:var(--border); border-radius:3px; overflow:hidden; }
-  .prog-fill { height:100%; background:var(--accent); border-radius:3px; width:0; transition:width .2s; }
-  .prog-label { font-size:11px; color:var(--muted); margin-top:5px; }
-  .btn-row { display:flex; gap:10px; padding:12px 16px; }
-  .btn { flex:1; padding:12px; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; border:none; }
-  .btn-cancel { background:var(--surface); color:var(--text); border:1px solid var(--border); }
-  .btn-send   { background:var(--accent); color:#1a1100; }
-  .btn-send:disabled { opacity:.4; cursor:not-allowed; }
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0e0e0e;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --accent: #e8c84a;
+    --accent2: #4ae8a0;
+    --danger: #e84a4a;
+    --text: #f0ede6;
+    --muted: #666;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    min-height: 100vh;
+    padding-bottom: 60px;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .header-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  header h1 { font-family: var(--mono); font-size: 14px; font-weight: 600; letter-spacing: 0.02em; }
+  header p  { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .tab {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── Panels ── */
+  .panel { display: none; padding: 16px; }
+  .panel.active { display: block; }
+
+  /* ── URL Input section ── */
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .url-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .url-input:focus { border-color: var(--accent); }
+  .url-input::placeholder { color: var(--muted); }
+
+  .btn {
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-primary   { background: var(--accent); color: #0e0e0e; }
+  .btn-primary:hover { background: #f5d84f; }
+  .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-ghost  { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  .btn-danger:hover { background: var(--danger); color: #fff; }
+  .btn-send   { background: var(--accent2); color: #0e0e0e; }
+  .btn-send:hover { background: #5af5b0; }
+  .btn-send:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* ── Preview area ── */
+  .preview-area {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    animation: fadeIn 0.2s ease;
+  }
+  .preview-area.show { display: flex; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  .watch-bezel {
+    width: 140px; height: 140px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4a3a1a, #7a5c2e, #4a3a1a);
+    padding: 5px;
+    box-shadow: 0 0 0 1px #2a2010, 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1);
+  }
+  .watch-screen {
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    background: #000;
+    overflow: hidden;
+    position: relative;
+  }
+  .watch-screen canvas { width: 100%; height: 100%; display: block; }
+
+  .preview-meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  /* ── Progress ── */
+  .prog-wrap { display: none; margin-bottom: 12px; }
+  .prog-wrap.show { display: block; }
+  .prog-track {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+  .prog-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    width: 0;
+    transition: width 0.2s;
+  }
+  .prog-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  /* ── Action row ── */
+  .action-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  /* ── Save row ── */
+  .save-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    display: none;
+  }
+  .save-row.show { display: flex; }
+  .save-name-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .save-name-input:focus { border-color: var(--accent2); }
+  .save-name-input::placeholder { color: var(--muted); }
+
+  /* ── Image list ── */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.8;
+  }
+  .empty-icon { font-size: 32px; margin-bottom: 10px; opacity: 0.4; }
+
+  .image-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .image-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    transition: border-color 0.15s;
+  }
+  .image-card:hover { border-color: #444; }
+
+  .card-thumb {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    border: 2px solid #4a3a1a;
+    background: #000;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .card-thumb canvas { width: 100%; height: 100%; display: block; }
+
+  .card-info { flex: 1; min-width: 0; }
+  .card-name {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .card-meta {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .card-btn {
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+  }
+  .card-btn-send { background: var(--accent2); color: #0e0e0e; }
+  .card-btn-send:hover { background: #5af5b0; }
+  .card-btn-del  { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .card-btn-del:hover  { color: var(--danger); border-color: var(--danger); }
+
+  /* ── Transfer overlay ── */
+  .transfer-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(14,14,14,0.92);
+    z-index: 100;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 24px;
+  }
+  .transfer-overlay.show { display: flex; }
+  .transfer-title {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent2);
+  }
+  .transfer-prog-track {
+    width: 100%;
+    max-width: 280px;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .transfer-prog-fill {
+    height: 100%;
+    background: var(--accent2);
+    border-radius: 3px;
+    width: 0;
+    transition: width 0.2s;
+  }
+  .transfer-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ── Log ── */
+  #log {
+    margin: 0 0 12px;
+    background: #050505;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #0c0;
+    max-height: 100px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  canvas#work { display: none; }
+
+  /* ── Divider ── */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 16px 0;
+  }
 </style>
 </head>
 <body>
+
 <header>
-  <h1>Photo Watchface</h1>
-  <p>Pebble Time Round · 180×180</p>
+  <div class="header-icon">⌚</div>
+  <div>
+    <h1>PHOTO WATCHFACE</h1>
+    <p>Pebble Time Round · 180×180</p>
+  </div>
 </header>
 
-<div id="log">ready
+<div class="tabs">
+  <div class="tab active" id="tab-new" onclick="switchTab('new')">NEW IMAGE</div>
+  <div class="tab" id="tab-saved" onclick="switchTab('saved')">SAVED <span id="saved-count"></span></div>
+  <div class="tab" id="tab-log" onclick="switchTab('log')">LOG</div>
 </div>
 
-<div class="dropzone" id="dz">
-  <input type="file" id="fileInput" accept="image/*">
-  <div class="dz-icon">🖼️</div>
-  <div class="dz-label">Tap to choose a photo</div>
-  <div class="dz-hint">Scaled to 180×180, dithered, sent as PNG over Bluetooth</div>
+<!-- NEW IMAGE PANEL -->
+<div class="panel active" id="panel-new">
+  <div class="section-label">Image URL</div>
+  <div class="input-row">
+    <input class="url-input" id="urlInput" type="url" placeholder="https://example.com/image.png">
+    <button class="btn btn-primary" id="btnLoad" onclick="loadURL()">Load</button>
+  </div>
+
+  <div class="preview-area" id="previewArea">
+    <div class="watch-bezel">
+      <div class="watch-screen">
+        <canvas id="previewCanvas" width="130" height="130"></canvas>
+      </div>
+    </div>
+    <div class="preview-meta" id="previewMeta">—</div>
+  </div>
+
+  <div class="prog-wrap" id="progWrap">
+    <div class="prog-track"><div class="prog-fill" id="progFill"></div></div>
+    <div class="prog-label" id="progLabel">Processing…</div>
+  </div>
+
+  <div class="action-row" id="actionRow" style="display:none">
+    <button class="btn btn-send" id="btnSend" onclick="sendToWatch(currentBytes)" disabled>Send to Watch</button>
+    <button class="btn btn-ghost" onclick="showSaveRow()">Save</button>
+  </div>
+
+  <div class="save-row" id="saveRow">
+    <input class="save-name-input" id="saveNameInput" placeholder="Name this image…" maxlength="32">
+    <button class="btn btn-ghost" onclick="saveCurrentImage()">Save</button>
+  </div>
 </div>
 
-<div class="preview-wrap" id="previewWrap">
-  <div class="watch-frame"><canvas id="previewCanvas" width="120" height="120"></canvas></div>
-  <div class="meta" id="metaText">—</div>
+<!-- SAVED PANEL -->
+<div class="panel" id="panel-saved">
+  <div id="imageList"></div>
 </div>
 
-<div class="prog-wrap" id="progWrap">
-  <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
-  <div class="prog-label" id="progLabel">Processing…</div>
+<!-- LOG PANEL -->
+<div class="panel" id="panel-log">
+  <div id="log">ready
+</div>
 </div>
 
-<div class="btn-row">
-  <button class="btn btn-cancel" id="btnCancel">Cancel</button>
-  <button class="btn btn-send"   id="btnSend" disabled>Send to Watch</button>
+<!-- Transfer overlay -->
+<div class="transfer-overlay" id="transferOverlay">
+  <div class="transfer-title">📡 SENDING TO WATCH</div>
+  <div class="transfer-prog-track">
+    <div class="transfer-prog-fill" id="transferFill"></div>
+  </div>
+  <div class="transfer-label" id="transferLabel">Preparing…</div>
 </div>
 
-<canvas id="work" style="display:none" width="180" height="180"></canvas>
+<!-- Hidden canvases -->
+<canvas id="work" width="180" height="180"></canvas>
 
 <script>
-// ── Log ───────────────────────────────────────────────────────────────────
+// ── Logging ────────────────────────────────────────────────────────────────
 var logEl = document.getElementById('log');
 function dbg(msg) {
   console.log('[PF] ' + msg);
   logEl.textContent += '\n' + msg;
   logEl.scrollTop = logEl.scrollHeight;
 }
-
-// ── Check Pebble object ───────────────────────────────────────────────────
 dbg('Pebble available: ' + (typeof Pebble !== 'undefined'));
-if (typeof Pebble !== 'undefined') {
-  dbg('Pebble.sendAppMessage: ' + (typeof Pebble.sendAppMessage));
+
+// ── Tabs ───────────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+  document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+  if (name === 'saved') renderSavedList();
 }
 
-// ── Pebble 64-color palette ───────────────────────────────────────────────
+// ── Pebble 64-color palette + Floyd-Steinberg ──────────────────────────────
 var PALETTE = (function() {
   var p = [];
   for (var r=0;r<4;r++) for (var g=0;g<4;g++) for (var b=0;b<4;b++)
@@ -95,7 +461,7 @@ function nearestColor(r,g,b) {
   for (var i=0;i<PALETTE.length;i++) {
     var c=PALETTE[i];
     var d=(r-c.r)*(r-c.r)*0.299+(g-c.g)*(g-c.g)*0.587+(b-c.b)*(b-c.b)*0.114;
-    if (d<bd){bd=d;best=c;}
+    if(d<bd){bd=d;best=c;}
   }
   return best;
 }
@@ -108,7 +474,7 @@ function floydSteinberg(ctx, w, h) {
     var er=d[i]-c.r, eg=d[i+1]-c.g, eb=d[i+2]-c.b;
     d[i]=c.r; d[i+1]=c.g; d[i+2]=c.b;
     function spread(dx,dy,f){
-      if(x+dx<0||x+dx>=w||y+dy<0||y+dy>=h) return;
+      if(x+dx<0||x+dx>=w||y+dy<0||y+dy>=h)return;
       var ni=4*((y+dy)*w+(x+dx));
       d[ni]+=er*f; d[ni+1]+=eg*f; d[ni+2]+=eb*f;
     }
@@ -117,112 +483,224 @@ function floydSteinberg(ctx, w, h) {
   ctx.putImageData(id,0,0);
 }
 
-// ── State ─────────────────────────────────────────────────────────────────
-var pngBytes    = null;
-var currentFile = null;
-var CHUNK_SIZE  = 128; // conservative; pebble-faces uses app_message_inbox_size_maximum()
+// ── State ──────────────────────────────────────────────────────────────────
+var currentBytes = null;
+var currentDataURL = null;
+var CHUNK_SIZE = 200;
 
-// ── Helpers ───────────────────────────────────────────────────────────────
-function showProg(v, pct, label) {
-  document.getElementById('progWrap').className = 'prog-wrap' + (v ? ' show' : '');
-  if (v) {
+// ── Progress helpers ───────────────────────────────────────────────────────
+function showProg(show, pct, label) {
+  var w = document.getElementById('progWrap');
+  w.className = 'prog-wrap' + (show ? ' show' : '');
+  if (show) {
     document.getElementById('progFill').style.width = pct + '%';
     document.getElementById('progLabel').textContent = label;
   }
 }
 
-function getReturnURL() {
-  var q=location.search.substring(1), vars=q.split('&');
-  for (var i=0;i<vars.length;i++) {
-    var p=vars[i].split('=');
-    if (p[0]==='return_to') return decodeURIComponent(p[1]);
-  }
-  return 'pebblejs://close#';
-}
-
-// ── Process image ─────────────────────────────────────────────────────────
-function processImage(file) {
-  currentFile = file;
-  pngBytes = null;
+// ── Load & process image from URL ─────────────────────────────────────────
+function loadURL() {
+  var url = document.getElementById('urlInput').value.trim();
+  if (!url) return;
+  currentBytes = null;
   document.getElementById('btnSend').disabled = true;
-  showProg(true, 10, 'Loading image…');
-  dbg('loading: ' + file.name + ' (' + file.size + ' B)');
+  document.getElementById('actionRow').style.display = 'none';
+  document.getElementById('saveRow').className = 'save-row';
+  document.getElementById('previewArea').className = 'preview-area';
+  showProg(true, 5, 'Fetching image…');
+  dbg('fetching: ' + url);
 
   var img = new Image();
-  var url = URL.createObjectURL(file);
+  img.crossOrigin = 'anonymous';
   img.onload = function() {
-    URL.revokeObjectURL(url);
-    dbg('image: ' + img.width + 'x' + img.height);
-    showProg(true, 30, 'Scaling to 180×180…');
-
-    var work = document.getElementById('work');
-    var wctx = work.getContext('2d');
-    var size = Math.min(img.width, img.height);
-    wctx.clearRect(0, 0, 180, 180);
-    wctx.drawImage(img, (img.width-size)/2, (img.height-size)/2, size, size, 0, 0, 180, 180);
-
-    showProg(true, 55, 'Dithering to 64 colors…');
-    setTimeout(function() {
-      floydSteinberg(wctx, 180, 180);
-
-      // Show dithered preview
-      document.getElementById('previewCanvas')
-        .getContext('2d').drawImage(work, 0,0,180,180, 0,0,120,120);
-      document.getElementById('previewWrap').className = 'preview-wrap show';
-
-      showProg(true, 75, 'Encoding PNG…');
-      setTimeout(function() {
-        var dataURL = work.toDataURL('image/png');
-        var b64 = dataURL.split(',')[1];
-        // atob is available in the phone browser WebView
-        var bin = atob(b64);
-        var bytes = new Array(bin.length);
-        for (var i=0; i<bin.length; i++) bytes[i] = bin.charCodeAt(i);
-
-        pngBytes = bytes;
-        dbg('PNG encoded: ' + bytes.length + ' bytes');
-        document.getElementById('metaText').textContent =
-          '180×180 · ' + (bytes.length/1024).toFixed(1) + ' KB PNG · ready to send';
-        showProg(false);
-        document.getElementById('btnSend').disabled = false;
-      }, 30);
-    }, 30);
+    dbg('fetched: ' + img.width + 'x' + img.height);
+    processImage(img);
   };
-  img.onerror = function() { showProg(false); dbg('ERROR: image load failed'); };
+  img.onerror = function() {
+    showProg(false);
+    dbg('ERROR: failed to load image (CORS or bad URL?)');
+  };
   img.src = url;
 }
 
-// ── File input ────────────────────────────────────────────────────────────
-document.getElementById('fileInput').addEventListener('change', function(e) {
-  if (e.target.files[0]) processImage(e.target.files[0]);
-});
-var dz = document.getElementById('dz');
-dz.addEventListener('dragover', function(e) { e.preventDefault(); });
-dz.addEventListener('drop', function(e) {
-  e.preventDefault();
-  if (e.dataTransfer.files[0]) processImage(e.dataTransfer.files[0]);
-});
+function processImage(img) {
+  showProg(true, 25, 'Scaling to 180×180…');
+  var work = document.getElementById('work');
+  var wctx = work.getContext('2d');
+  var size = Math.min(img.width, img.height);
+  wctx.clearRect(0,0,180,180);
+  wctx.drawImage(img, (img.width-size)/2, (img.height-size)/2, size, size, 0, 0, 180, 180);
 
-// ── Send to watch directly from config page ───────────────────────────────
-// The config page WebView has access to the Pebble object — we don't need to
-// go through webviewclosed at all. We replicate the pebble-faces protocol:
-//   NETDL_BEGIN(total) → NETDL_DATA(chunk)... → NETDL_END(total) → close
-document.getElementById('btnSend').addEventListener('click', function() {
-  if (!pngBytes) { dbg('no bytes'); return; }
+  showProg(true, 50, 'Dithering to 64 colors…');
+  setTimeout(function() {
+    floydSteinberg(wctx, 180, 180);
 
-  if (typeof Pebble === 'undefined' || typeof Pebble.sendAppMessage !== 'function') {
-    dbg('ERROR: Pebble.sendAppMessage not available in this context');
-    dbg('Are you viewing this page outside the Pebble app?');
+    // Copy to preview canvas
+    var pCanvas = document.getElementById('previewCanvas');
+    pCanvas.getContext('2d').drawImage(work, 0,0,180,180, 0,0,130,130);
+    document.getElementById('previewArea').className = 'preview-area show';
+
+    showProg(true, 75, 'Encoding PNG…');
+    setTimeout(function() {
+      var dataURL = work.toDataURL('image/png');
+      currentDataURL = dataURL;
+      var b64 = dataURL.split(',')[1];
+      var bin = atob(b64);
+      var bytes = new Array(bin.length);
+      for (var i=0; i<bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      currentBytes = bytes;
+
+      dbg('PNG ready: ' + bytes.length + ' bytes (' + (bytes.length/1024).toFixed(1) + ' KB)');
+      document.getElementById('previewMeta').textContent =
+        '180×180 · Pebble 64-color dither\n' + (bytes.length/1024).toFixed(1) + ' KB PNG · ready to send';
+
+      showProg(false);
+      document.getElementById('btnSend').disabled = false;
+      document.getElementById('actionRow').style.display = 'flex';
+    }, 30);
+  }, 30);
+}
+
+// ── Save ───────────────────────────────────────────────────────────────────
+function showSaveRow() {
+  document.getElementById('saveRow').className = 'save-row show';
+  document.getElementById('saveNameInput').focus();
+}
+
+function saveCurrentImage() {
+  if (!currentBytes || !currentDataURL) return;
+  var name = document.getElementById('saveNameInput').value.trim();
+  if (!name) name = 'Image ' + (getSaved().length + 1);
+
+  var saved = getSaved();
+  saved.push({
+    id: Date.now(),
+    name: name,
+    dataURL: currentDataURL,
+    size: currentBytes.length,
+    url: document.getElementById('urlInput').value.trim(),
+    savedAt: new Date().toLocaleDateString()
+  });
+  setSaved(saved);
+  document.getElementById('saveRow').className = 'save-row';
+  document.getElementById('saveNameInput').value = '';
+  updateSavedCount();
+  dbg('saved: ' + name);
+}
+
+function getSaved() {
+  try { return JSON.parse(localStorage.getItem('pf_images') || '[]'); }
+  catch(e) { return []; }
+}
+function setSaved(arr) {
+  localStorage.setItem('pf_images', JSON.stringify(arr));
+}
+function updateSavedCount() {
+  var n = getSaved().length;
+  document.getElementById('saved-count').textContent = n > 0 ? '(' + n + ')' : '';
+}
+
+// ── Render saved list ──────────────────────────────────────────────────────
+function renderSavedList() {
+  var saved = getSaved();
+  var el = document.getElementById('imageList');
+  updateSavedCount();
+
+  if (saved.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🖼️</div>No saved images yet.<br>Load an image and tap Save.</div>';
     return;
   }
 
-  document.getElementById('btnSend').disabled = true;
-  var bytes = pngBytes;
-  var total = bytes.length;
-  dbg('starting transfer: ' + total + ' bytes, chunkSize=' + CHUNK_SIZE);
-  showProg(true, 0, 'Sending…');
+  el.innerHTML = '';
+  saved.forEach(function(item) {
+    var card = document.createElement('div');
+    card.className = 'image-card';
 
-  // Step 1: BEGIN
+    var thumbDiv = document.createElement('div');
+    thumbDiv.className = 'card-thumb';
+    var thumbCanvas = document.createElement('canvas');
+    thumbCanvas.width = 52; thumbCanvas.height = 52;
+    thumbDiv.appendChild(thumbCanvas);
+
+    // Draw thumbnail from saved dataURL
+    var tImg = new Image();
+    tImg.onload = function() {
+      thumbCanvas.getContext('2d').drawImage(tImg, 0,0,180,180, 0,0,52,52);
+    };
+    tImg.src = item.dataURL;
+
+    var info = document.createElement('div');
+    info.className = 'card-info';
+    info.innerHTML =
+      '<div class="card-name">' + escHtml(item.name) + '</div>' +
+      '<div class="card-meta">' + (item.size/1024).toFixed(1) + ' KB · ' + item.savedAt + '</div>';
+
+    var actions = document.createElement('div');
+    actions.className = 'card-actions';
+
+    var sendBtn = document.createElement('button');
+    sendBtn.className = 'card-btn card-btn-send';
+    sendBtn.textContent = 'Send';
+    sendBtn.onclick = (function(i) { return function() { sendSavedImage(i); }; })(item);
+
+    var delBtn = document.createElement('button');
+    delBtn.className = 'card-btn card-btn-del';
+    delBtn.textContent = '✕';
+    delBtn.onclick = (function(id) { return function() { deleteImage(id); }; })(item.id);
+
+    actions.appendChild(sendBtn);
+    actions.appendChild(delBtn);
+    card.appendChild(thumbDiv);
+    card.appendChild(info);
+    card.appendChild(actions);
+    el.appendChild(card);
+  });
+}
+
+function deleteImage(id) {
+  var saved = getSaved().filter(function(i) { return i.id !== id; });
+  setSaved(saved);
+  renderSavedList();
+  dbg('deleted image id=' + id);
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Send saved image ───────────────────────────────────────────────────────
+function sendSavedImage(item) {
+  dbg('preparing saved image: ' + item.name);
+  var b64 = item.dataURL.split(',')[1];
+  var bin = atob(b64);
+  var bytes = new Array(bin.length);
+  for (var i=0; i<bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  sendToWatch(bytes);
+}
+
+// ── Transfer ───────────────────────────────────────────────────────────────
+function showTransfer(show, pct, label) {
+  document.getElementById('transferOverlay').className = 'transfer-overlay' + (show ? ' show' : '');
+  if (show) {
+    document.getElementById('transferFill').style.width = pct + '%';
+    document.getElementById('transferLabel').textContent = label || '';
+  }
+}
+
+function sendToWatch(bytes) {
+  if (!bytes) { dbg('no bytes to send'); return; }
+
+  if (typeof Pebble === 'undefined' || typeof Pebble.sendAppMessage !== 'function') {
+    dbg('ERROR: Pebble.sendAppMessage not available');
+    dbg('Must be opened from within the Pebble app');
+    return;
+  }
+
+  var total = bytes.length;
+  dbg('starting transfer: ' + total + ' bytes');
+  showTransfer(true, 0, 'Starting…');
+  document.getElementById('btnSend').disabled = true;
+
   Pebble.sendAppMessage(
     { 'NETDL_BEGIN': total },
     function() {
@@ -231,53 +709,75 @@ document.getElementById('btnSend').addEventListener('click', function() {
     },
     function(e) {
       dbg('NETDL_BEGIN nack: ' + e);
-      showProg(false);
+      showTransfer(false);
       document.getElementById('btnSend').disabled = false;
     }
   );
 
   function sendChunk(offset) {
     if (offset >= total) {
-      // Step 3: END
       Pebble.sendAppMessage(
         { 'NETDL_END': total },
         function() {
-          dbg('NETDL_END ack — done!');
-          showProg(true, 100, 'Done! Closing…');
+          dbg('done!');
+          showTransfer(true, 100, 'Done! ✓');
           setTimeout(function() {
-            document.location = getReturnURL() +
-              encodeURIComponent(JSON.stringify({ action: 'done' }));
-          }, 800);
+            showTransfer(false);
+            document.getElementById('btnSend').disabled = false;
+            var ret = getReturnURL();
+            if (ret !== 'pebblejs://close#') {
+              document.location = ret + encodeURIComponent(JSON.stringify({ action: 'done' }));
+            }
+          }, 1200);
         },
-        function(e) { dbg('NETDL_END nack: ' + e); showProg(false); }
+        function(e) {
+          dbg('NETDL_END nack: ' + e);
+          showTransfer(false);
+          document.getElementById('btnSend').disabled = false;
+        }
       );
       return;
     }
 
     var slice = bytes.slice(offset, offset + CHUNK_SIZE);
-    var pct   = Math.round((offset / total) * 100);
-    showProg(true, pct, 'Sending… ' + pct + '% (' + offset + '/' + total + ' bytes)');
+    var pct = Math.round((offset / total) * 100);
+    showTransfer(true, pct, pct + '% · ' + offset + ' / ' + total + ' bytes');
 
     Pebble.sendAppMessage(
       { 'NETDL_DATA': slice },
       function() { sendChunk(offset + CHUNK_SIZE); },
       function(e) {
-        dbg('chunk nack at ' + offset + ': ' + e + ' — retrying');
+        dbg('chunk nack at ' + offset + ', retrying…');
         Pebble.sendAppMessage(
           { 'NETDL_DATA': slice },
           function() { sendChunk(offset + CHUNK_SIZE); },
-          function(e2) { dbg('chunk retry failed: ' + e2); showProg(false); }
+          function(e2) {
+            dbg('chunk retry failed: ' + e2);
+            showTransfer(false);
+            document.getElementById('btnSend').disabled = false;
+          }
         );
       }
     );
   }
-});
+}
 
-// ── Cancel ────────────────────────────────────────────────────────────────
-document.getElementById('btnCancel').addEventListener('click', function() {
-  dbg('cancelled');
-  document.location = getReturnURL() +
-    encodeURIComponent(JSON.stringify({ action: 'cancel' }));
+function getReturnURL() {
+  var q = location.search.substring(1);
+  var vars = q.split('&');
+  for (var i=0; i<vars.length; i++) {
+    var p = vars[i].split('=');
+    if (p[0]==='return_to') return decodeURIComponent(p[1]);
+  }
+  return 'pebblejs://close#';
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+updateSavedCount();
+
+// Allow pressing Enter in URL field
+document.getElementById('urlInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') loadURL();
 });
 </script>
 </body>
