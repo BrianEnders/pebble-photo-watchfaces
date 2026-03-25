@@ -512,8 +512,6 @@ function loadURL() {
   img.onerror = function() { dbg('ERROR: failed to load image'); };
   img.src = proxiedURL;
 }
-  
-
 
 function processImage(img) {
   showProg(true, 25, 'Scaling to 180×180…');
