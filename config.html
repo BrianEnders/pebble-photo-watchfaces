@@ -502,26 +502,18 @@ function showProg(show, pct, label) {
 function loadURL() {
   var url = document.getElementById('urlInput').value.trim();
   if (!url) return;
-  currentBytes = null;
-  document.getElementById('btnSend').disabled = true;
-  document.getElementById('actionRow').style.display = 'none';
-  document.getElementById('saveRow').className = 'save-row';
-  document.getElementById('previewArea').className = 'preview-area';
-  showProg(true, 5, 'Fetching image…');
-  dbg('fetching: ' + url);
-
+  
+  // Route through CORS proxy
+  var proxiedURL = 'https://corsproxy.io/?' + encodeURIComponent(url);
+  
   var img = new Image();
   img.crossOrigin = 'anonymous';
-  img.onload = function() {
-    dbg('fetched: ' + img.width + 'x' + img.height);
-    processImage(img);
-  };
-  img.onerror = function() {
-    showProg(false);
-    dbg('ERROR: failed to load image (CORS or bad URL?)');
-  };
-  img.src = url;
+  img.onload = function() { processImage(img); };
+  img.onerror = function() { dbg('ERROR: failed to load image'); };
+  img.src = proxiedURL;
 }
+  
+
 
 function processImage(img) {
   showProg(true, 25, 'Scaling to 180×180…');
