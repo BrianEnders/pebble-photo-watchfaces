@@ -519,7 +519,7 @@ function loadURL() {
   };
   img.onerror = function() {
     showProg(false);
-    dbg('ERROR: failed to load image');
+    dbg('ERROR: failed to load immage');
     dbg('Trying XHR fallback…');
     loadViaXHR(url);
   };
