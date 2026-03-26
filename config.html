@@ -396,7 +396,7 @@
   </div>
 
   <div class="action-row" id="actionRow" style="display:none">
-    <button class="btn btn-send" id="btnSend" onclick="sendToWatch(currentBytes)" disabled>Send to Watch</button>
+    <button class="btn btn-send" id="btnSend" disabled>Send to Watch</button>
     <button class="btn btn-ghost" onclick="showSaveRow()">Save</button>
   </div>
 
@@ -811,6 +811,20 @@ updateSavedCount();
 // Allow pressing Enter in URL field
 document.getElementById('urlInput').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') loadURL();
+});
+
+document.getElementById('btnSend').addEventListener('click', function() {
+  if (!currentBytes || !currentDataURL) return;
+  
+  dbg('Returning image to app…');
+  
+  // Send the base64 PNG back via webviewclosed
+  var result = encodeURIComponent(JSON.stringify({
+    action: 'send',
+    imageData: currentDataURL  // base64 PNG
+  }));
+  
+  document.location = getReturnURL() + result;
 });
 </script>
 </body>
