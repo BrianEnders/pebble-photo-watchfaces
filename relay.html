@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  body { background:#0e0e0e; color:#f0ede6; font-family:monospace; 
+         font-size:12px; padding:20px; }
+  #status { color: #4ae8a0; margin-bottom: 10px; }
+  #log { color: #0c0; white-space:pre-wrap; word-break:break-all; }
+  .bar-track { background:#222; border-radius:3px; height:6px; margin:10px 0; }
+  .bar-fill  { background:#4ae8a0; height:6px; border-radius:3px; 
+               width:0; transition:width .2s; }
+</style>
+</head>
+<body>
+<div id="status">Preparing transfer…</div>
+<div class="bar-track"><div class="bar-fill" id="bar"></div></div>
+<div id="log"></div>
+
+<script>
+var logEl = document.getElementById('log');
+function dbg(msg) {
+  console.log(msg);
+  logEl.textContent += '\n' + msg;
+}
+function setStatus(msg) {
+  document.getElementById('status').textContent = msg;
+}
+function setBar(pct) {
+  document.getElementById('bar').style.width = pct + '%';
+}
+
+var CHUNK_SIZE = 200;
+
+var dataURL = localStorage.getItem('pf_pending_send');
+if (!dataURL) {
+  dbg('ERROR: no image data found in localStorage');
+} else {
+  localStorage.removeItem('pf_pending_send'); // clean up
+  
+  var b64  = dataURL.split(',')[1];
+  var bin  = atob(b64);
+  var bytes = new Array(bin.length);
+  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  
+  dbg('image ready: ' + bytes.length + ' bytes');
+  
+  if (typeof Pebble === 'undefined') {
+    dbg('ERROR: Pebble not available');
+  } else {
+    startTransfer(bytes);
+  }
+}
+
+function startTransfer(bytes) {
+  var total = bytes.length;
+  setStatus('Sending to watch…');
+  dbg('NETDL_BEGIN: ' + total);
+
+  Pebble.sendAppMessage({ 'NETDL_BEGIN': total },
+    function() {
+      dbg('BEGIN ack, sending chunks…');
+      sendChunk(0);
+    },
+    function(e) { dbg('BEGIN nack: ' + e); setStatus('Failed to start transfer'); }
+  );
+
+  function sendChunk(offset) {
+    if (offset >= total) {
+      Pebble.sendAppMessage({ 'NETDL_END': total },
+        function() {
+          dbg('done!');
+          setStatus('✓ Done! You can close this page.');
+          setBar(100);
+        },
+        function(e) { dbg('END nack: ' + e); }
+      );
+      return;
+    }
+
+    var slice = bytes.slice(offset, offset + CHUNK_SIZE);
+    var pct   = Math.round((offset / total) * 100);
+    setBar(pct);
+    setStatus('Sending… ' + pct + '%');
+
+    Pebble.sendAppMessage({ 'NETDL_DATA': slice },
+      function() { sendChunk(offset + CHUNK_SIZE); },
+      function(e) {
+        dbg('chunk nack at ' + offset + ', retrying…');
+        Pebble.sendAppMessage({ 'NETDL_DATA': slice },
+          function() { sendChunk(offset + CHUNK_SIZE); },
+          function(e2) { dbg('retry failed: ' + e2); setStatus('Transfer failed'); }
+        );
+      }
+    );
+  }
+}
+</script>
+</body>
+</html>
