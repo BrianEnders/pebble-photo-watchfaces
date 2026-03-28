@@ -53,6 +53,8 @@ if (!dataURL) {
 }
 
 function startTransfer(bytes) {
+  
+    console.log('startTransfer');
   var total = bytes.length;
   setStatus('Sending to watch…');
   dbg('NETDL_BEGIN: ' + total);
@@ -66,6 +68,7 @@ function startTransfer(bytes) {
   );
 
   function sendChunk(offset) {
+    console.log('sendChunk');
     if (offset >= total) {
       Pebble.sendAppMessage({ 'NETDL_END': total },
         function() {
@@ -86,6 +89,7 @@ function startTransfer(bytes) {
     Pebble.sendAppMessage({ 'NETDL_DATA': slice },
       function() { sendChunk(offset + CHUNK_SIZE); },
       function(e) {
+        console.log('sendAppMessage({ NETDL_DATA: slice :');
         dbg('chunk nack at ' + offset + ', retrying…');
         Pebble.sendAppMessage({ 'NETDL_DATA': slice },
           function() { sendChunk(offset + CHUNK_SIZE); },
