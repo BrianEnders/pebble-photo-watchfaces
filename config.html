@@ -32,7 +32,6 @@
     padding-bottom: 60px;
   }
 
-  /* ── Header ── */
   header {
     background: var(--surface);
     border-bottom: 1px solid var(--border);
@@ -55,7 +54,6 @@
   header h1 { font-family: var(--mono); font-size: 14px; font-weight: 600; letter-spacing: 0.02em; }
   header p  { font-size: 11px; color: var(--muted); font-family: var(--mono); }
 
-  /* ── Tabs ── */
   .tabs {
     display: flex;
     border-bottom: 1px solid var(--border);
@@ -77,11 +75,9 @@
   }
   .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-  /* ── Panels ── */
   .panel { display: none; padding: 16px; }
   .panel.active { display: block; }
 
-  /* ── URL Input section ── */
   .section-label {
     font-family: var(--mono);
     font-size: 10px;
@@ -92,11 +88,7 @@
     margin-bottom: 8px;
   }
 
-  .input-row {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
+  .input-row { display: flex; gap: 8px; margin-bottom: 12px; }
   .url-input {
     flex: 1;
     background: var(--surface2);
@@ -123,18 +115,15 @@
     transition: all 0.15s;
     white-space: nowrap;
   }
-  .btn-primary   { background: var(--accent); color: #0e0e0e; }
-  .btn-primary:hover { background: #f5d84f; }
+  .btn-primary          { background: var(--accent);  color: #0e0e0e; }
+  .btn-primary:hover    { background: #f5d84f; }
   .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
-  .btn-ghost  { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
-  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
-  .btn-danger:hover { background: var(--danger); color: #fff; }
-  .btn-send   { background: var(--accent2); color: #0e0e0e; }
-  .btn-send:hover { background: #5af5b0; }
-  .btn-send:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-ghost            { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover      { border-color: var(--accent); color: var(--accent); }
+  .btn-send             { background: var(--accent2); color: #0e0e0e; }
+  .btn-send:hover       { background: #5af5b0; }
+  .btn-send:disabled    { opacity: 0.35; cursor: not-allowed; }
 
-  /* ── Preview area ── */
   .preview-area {
     display: none;
     flex-direction: column;
@@ -144,22 +133,24 @@
     animation: fadeIn 0.2s ease;
   }
   .preview-area.show { display: flex; }
-
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
 
   .watch-bezel {
     width: 140px; height: 140px;
     border-radius: 50%;
     background: linear-gradient(135deg, #4a3a1a, #7a5c2e, #4a3a1a);
     padding: 5px;
-    box-shadow: 0 0 0 1px #2a2010, 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1);
+    box-shadow: 0 0 0 1px #2a2010, 0 8px 32px rgba(0,0,0,0.6),
+                inset 0 1px 0 rgba(255,255,255,0.1);
   }
   .watch-screen {
     width: 100%; height: 100%;
     border-radius: 50%;
     background: #000;
     overflow: hidden;
-    position: relative;
   }
   .watch-screen canvas { width: 100%; height: 100%; display: block; }
 
@@ -171,190 +162,83 @@
     line-height: 1.6;
   }
 
-  /* ── Progress ── */
   .prog-wrap { display: none; margin-bottom: 12px; }
   .prog-wrap.show { display: block; }
   .prog-track {
-    height: 4px;
-    background: var(--border);
-    border-radius: 2px;
-    overflow: hidden;
-    margin-bottom: 6px;
+    height: 4px; background: var(--border);
+    border-radius: 2px; overflow: hidden; margin-bottom: 6px;
   }
   .prog-fill {
-    height: 100%;
-    background: var(--accent);
-    border-radius: 2px;
-    width: 0;
-    transition: width 0.2s;
+    height: 100%; background: var(--accent);
+    border-radius: 2px; width: 0; transition: width 0.2s;
   }
-  .prog-label {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-  }
+  .prog-label { font-family: var(--mono); font-size: 10px; color: var(--muted); }
 
-  /* ── Action row ── */
-  .action-row {
-    display: flex;
-    gap: 8px;
-  }
+  .action-row { display: flex; gap: 8px; }
 
-  /* ── Save row ── */
-  .save-row {
-    display: flex;
-    gap: 8px;
-    margin-top: 10px;
-    display: none;
-  }
-  .save-row.show { display: flex; }
-  .save-name-input {
-    flex: 1;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 9px 12px;
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 12px;
-    outline: none;
-    transition: border-color 0.15s;
-  }
-  .save-name-input:focus { border-color: var(--accent2); }
-  .save-name-input::placeholder { color: var(--muted); }
-
-  /* ── Image list ── */
+  /* Saved list */
   .empty-state {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--muted);
-    font-family: var(--mono);
-    font-size: 12px;
-    line-height: 1.8;
+    text-align: center; padding: 40px 20px;
+    color: var(--muted); font-family: var(--mono);
+    font-size: 12px; line-height: 1.8;
   }
   .empty-icon { font-size: 32px; margin-bottom: 10px; opacity: 0.4; }
-
   .image-list { display: flex; flex-direction: column; gap: 10px; }
-
   .image-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px;
-    transition: border-color 0.15s;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; display: flex; align-items: center;
+    gap: 12px; padding: 10px; transition: border-color 0.15s;
   }
   .image-card:hover { border-color: #444; }
-
+  .image-card.active-card { border-color: var(--accent2); }
   .card-thumb {
-    width: 52px; height: 52px;
-    border-radius: 50%;
-    border: 2px solid #4a3a1a;
-    background: #000;
-    overflow: hidden;
-    flex-shrink: 0;
+    width: 52px; height: 52px; border-radius: 50%;
+    border: 2px solid #4a3a1a; background: #000;
+    overflow: hidden; flex-shrink: 0;
   }
   .card-thumb canvas { width: 100%; height: 100%; display: block; }
-
   .card-info { flex: 1; min-width: 0; }
-  .card-name {
-    font-family: var(--mono);
-    font-size: 13px;
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .card-meta {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-    margin-top: 2px;
-  }
-
+  .card-name { font-family: var(--mono); font-size: 13px; font-weight: 500; }
+  .card-meta { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .card-active-badge { font-family: var(--mono); font-size: 9px; color: var(--accent2); margin-top: 3px; }
   .card-actions { display: flex; gap: 6px; flex-shrink: 0; }
   .card-btn {
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-family: var(--mono);
-    font-size: 11px;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-    transition: all 0.15s;
+    padding: 6px 10px; border-radius: 6px;
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    cursor: pointer; border: none; transition: all 0.15s;
   }
   .card-btn-send { background: var(--accent2); color: #0e0e0e; }
   .card-btn-send:hover { background: #5af5b0; }
-  .card-btn-del  { background: transparent; color: var(--muted); border: 1px solid var(--border); }
-  .card-btn-del:hover  { color: var(--danger); border-color: var(--danger); }
+  .card-btn-del { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .card-btn-del:hover { color: var(--danger); border-color: var(--danger); }
 
-  /* ── Transfer overlay ── */
+  /* Transfer overlay */
   .transfer-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(14,14,14,0.92);
-    z-index: 100;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    padding: 24px;
+    display: none; position: fixed; inset: 0;
+    background: rgba(14,14,14,0.94); z-index: 100;
+    flex-direction: column; align-items: center;
+    justify-content: center; gap: 16px; padding: 24px;
   }
   .transfer-overlay.show { display: flex; }
-  .transfer-title {
-    font-family: var(--mono);
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--accent2);
-  }
+  .transfer-title { font-family: var(--mono); font-size: 14px; font-weight: 600; color: var(--accent2); }
   .transfer-prog-track {
-    width: 100%;
-    max-width: 280px;
-    height: 6px;
-    background: var(--border);
-    border-radius: 3px;
-    overflow: hidden;
+    width: 100%; max-width: 280px; height: 6px;
+    background: var(--border); border-radius: 3px; overflow: hidden;
   }
   .transfer-prog-fill {
-    height: 100%;
-    background: var(--accent2);
-    border-radius: 3px;
-    width: 0;
-    transition: width 0.2s;
+    height: 100%; background: var(--accent2);
+    border-radius: 3px; width: 0; transition: width 0.2s;
   }
-  .transfer-label {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--muted);
-  }
+  .transfer-label { font-family: var(--mono); font-size: 11px; color: var(--muted); text-align: center; }
 
-  /* ── Log ── */
   #log {
-    margin: 0 0 12px;
-    background: #050505;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 10px;
-    font-family: var(--mono);
-    font-size: 10px;
-    color: #0c0;
-    max-height: 100px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    word-break: break-all;
+    background: #050505; border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px;
+    font-family: var(--mono); font-size: 10px; color: #0c0;
+    max-height: 300px; overflow-y: auto;
+    white-space: pre-wrap; word-break: break-all;
   }
-
   canvas#work { display: none; }
-
-  /* ── Divider ── */
-  .divider {
-    height: 1px;
-    background: var(--border);
-    margin: 16px 0;
-  }
 </style>
 </head>
 <body>
@@ -363,22 +247,22 @@
   <div class="header-icon">⌚</div>
   <div>
     <h1>PHOTO WATCHFACE</h1>
-    <p>Pebble Time Round · 180×180 0.12</p>
+    <p>Pebble Time Round · 180×180 · 64 colors v0.13</p>
   </div>
 </header>
 
 <div class="tabs">
-  <div class="tab active" id="tab-new" onclick="switchTab('new')">NEW IMAGE</div>
-  <div class="tab" id="tab-saved" onclick="switchTab('saved')">SAVED <span id="saved-count"></span></div>
-  <div class="tab" id="tab-log" onclick="switchTab('log')">LOG</div>
+  <div class="tab active" id="tab-new"   onclick="switchTab('new')">NEW IMAGE</div>
+  <div class="tab"        id="tab-saved" onclick="switchTab('saved')">SAVED <span id="saved-count"></span></div>
+  <div class="tab"        id="tab-log"   onclick="switchTab('log')">LOG</div>
 </div>
 
-<!-- NEW IMAGE PANEL -->
+<!-- NEW IMAGE -->
 <div class="panel active" id="panel-new">
   <div class="section-label">Image URL</div>
   <div class="input-row">
-    <input class="url-input" id="urlInput" type="url" placeholder="https://example.com/image.png">
-    <button class="btn btn-primary" id="btnLoad" onclick="loadURL()">Load</button>
+    <input class="url-input" id="urlInput" type="url" placeholder="https://example.com/photo.png">
+    <button class="btn btn-primary" onclick="loadURL()">Load</button>
   </div>
 
   <div class="preview-area" id="previewArea">
@@ -396,22 +280,18 @@
   </div>
 
   <div class="action-row" id="actionRow" style="display:none">
-    <button class="btn btn-send" id="btnSend" disabled>Send to Watch</button>
-    <button class="btn btn-ghost" onclick="showSaveRow()">Save</button>
-  </div>
-
-  <div class="save-row" id="saveRow">
-    <input class="save-name-input" id="saveNameInput" placeholder="Name this image…" maxlength="32">
-    <button class="btn btn-ghost" onclick="saveCurrentImage()">Save</button>
+    <button class="btn btn-send" id="btnSend" onclick="saveAndSend()" disabled>
+      Save &amp; Send to Watch
+    </button>
   </div>
 </div>
 
-<!-- SAVED PANEL -->
+<!-- SAVED -->
 <div class="panel" id="panel-saved">
   <div id="imageList"></div>
 </div>
 
-<!-- LOG PANEL -->
+<!-- LOG -->
 <div class="panel" id="panel-log">
   <div id="log">ready
 </div>
@@ -419,14 +299,13 @@
 
 <!-- Transfer overlay -->
 <div class="transfer-overlay" id="transferOverlay">
-  <div class="transfer-title">📡 SENDING TO WATCH</div>
+  <div class="transfer-title">📡 SENDING KEY TO WATCH</div>
   <div class="transfer-prog-track">
     <div class="transfer-prog-fill" id="transferFill"></div>
   </div>
   <div class="transfer-label" id="transferLabel">Preparing…</div>
 </div>
 
-<!-- Hidden canvases -->
 <canvas id="work" width="180" height="180"></canvas>
 
 <script>
@@ -448,7 +327,7 @@ function switchTab(name) {
   if (name === 'saved') renderSavedList();
 }
 
-// ── Pebble 64-color palette + Floyd-Steinberg ──────────────────────────────
+// ── Pebble 64-color palette + Floyd-Steinberg dither ──────────────────────
 var PALETTE = (function() {
   var p = [];
   for (var r=0;r<4;r++) for (var g=0;g<4;g++) for (var b=0;b<4;b++)
@@ -484,43 +363,71 @@ function floydSteinberg(ctx, w, h) {
 }
 
 // ── State ──────────────────────────────────────────────────────────────────
-var currentBytes = null;
 var currentDataURL = null;
-var CHUNK_SIZE = 200;
+var currentBytes   = null;
 
-// ── Progress helpers ───────────────────────────────────────────────────────
+// ── localStorage helpers ───────────────────────────────────────────────────
+// pf_images      → { "0": {key, dataURL, size, savedAt}, "1": {...} }
+// pf_next_slot   → integer, auto-increments
+// pf_active_slot → integer, which slot is currently on the watch
+
+function getImages() {
+  try { return JSON.parse(localStorage.getItem('pf_images') || '{}'); }
+  catch(e) { return {}; }
+}
+function setImages(obj) { localStorage.setItem('pf_images', JSON.stringify(obj)); }
+
+function getNextSlot() {
+  return parseInt(localStorage.getItem('pf_next_slot') || '0', 10);
+}
+function bumpNextSlot() {
+  var n = getNextSlot();
+  localStorage.setItem('pf_next_slot', String(n + 1));
+  return n; // return the slot we just claimed
+}
+
+function getActiveSlot() {
+  var v = localStorage.getItem('pf_active_slot');
+  return v !== null ? parseInt(v, 10) : -1;
+}
+function setActiveSlot(slot) {
+  localStorage.setItem('pf_active_slot', String(slot));
+}
+
+function updateSavedCount() {
+  var n = Object.keys(getImages()).length;
+  document.getElementById('saved-count').textContent = n > 0 ? '(' + n + ')' : '';
+}
+
+// ── Progress bar ───────────────────────────────────────────────────────────
 function showProg(show, pct, label) {
-  var w = document.getElementById('progWrap');
-  w.className = 'prog-wrap' + (show ? ' show' : '');
+  document.getElementById('progWrap').className = 'prog-wrap' + (show ? ' show' : '');
   if (show) {
     document.getElementById('progFill').style.width = pct + '%';
     document.getElementById('progLabel').textContent = label;
   }
 }
 
-// ── Load & process image from URL ─────────────────────────────────────────
+// ── Load image from URL ────────────────────────────────────────────────────
 function loadURL() {
   var url = document.getElementById('urlInput').value.trim();
   if (!url) return;
-  currentBytes = null;
+
+  currentDataURL = null;
+  currentBytes   = null;
   document.getElementById('btnSend').disabled = true;
   document.getElementById('actionRow').style.display = 'none';
-  document.getElementById('saveRow').className = 'save-row';
   document.getElementById('previewArea').className = 'preview-area';
   showProg(true, 5, 'Fetching image…');
   dbg('fetching: ' + url);
-  dbg('UA: ' + navigator.userAgent);
-  
+
   var img = new Image();
-  // NO crossOrigin attribute - old WebView doesn't support it
   img.onload = function() {
-    dbg('fetched: ' + img.width + 'x' + img.height);
+    dbg('loaded: ' + img.width + 'x' + img.height);
     processImage(img);
   };
   img.onerror = function() {
-    showProg(false);
-    dbg('ERROR: failed to load immage');
-    dbg('Trying XHR fallback…');
+    dbg('img tag failed, trying XHR fallback…');
     loadViaXHR(url);
   };
   img.src = url;
@@ -536,41 +443,35 @@ function loadViaXHR(url) {
       var img = new Image();
       img.onload = function() {
         URL.revokeObjectURL(blobURL);
-        dbg('XHR load ok: ' + img.width + 'x' + img.height);
+        dbg('XHR ok: ' + img.width + 'x' + img.height);
         processImage(img);
       };
-      img.onerror = function() {
-        showProg(false);
-        dbg('ERROR: XHR blob load also failed');
-      };
+      img.onerror = function() { showProg(false); dbg('ERROR: XHR blob also failed'); };
       img.src = blobURL;
     } else {
       showProg(false);
       dbg('ERROR: XHR status ' + xhr.status);
     }
   };
-  xhr.onerror = function() {
-    showProg(false);
-    dbg('ERROR: XHR request failed - likely a network or CORS block');
-  };
+  xhr.onerror = function() { showProg(false); dbg('ERROR: XHR network error'); };
   xhr.send();
 }
 
+// ── Process: scale → dither → encode PNG ──────────────────────────────────
 function processImage(img) {
   showProg(true, 25, 'Scaling to 180×180…');
   var work = document.getElementById('work');
   var wctx = work.getContext('2d');
   var size = Math.min(img.width, img.height);
   wctx.clearRect(0,0,180,180);
-  wctx.drawImage(img, (img.width-size)/2, (img.height-size)/2, size, size, 0, 0, 180, 180);
+  wctx.drawImage(img, (img.width-size)/2, (img.height-size)/2, size, size, 0,0,180,180);
 
   showProg(true, 50, 'Dithering to 64 colors…');
   setTimeout(function() {
     floydSteinberg(wctx, 180, 180);
 
-    // Copy to preview canvas
-    var pCanvas = document.getElementById('previewCanvas');
-    pCanvas.getContext('2d').drawImage(work, 0,0,180,180, 0,0,130,130);
+    document.getElementById('previewCanvas')
+      .getContext('2d').drawImage(work, 0,0,180,180, 0,0,130,130);
     document.getElementById('previewArea').className = 'preview-area show';
 
     showProg(true, 75, 'Encoding PNG…');
@@ -579,13 +480,13 @@ function processImage(img) {
       currentDataURL = dataURL;
       var b64 = dataURL.split(',')[1];
       var bin = atob(b64);
-      var bytes = new Array(bin.length);
-      for (var i=0; i<bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      currentBytes = bytes;
+      currentBytes = new Array(bin.length);
+      for (var i=0; i<bin.length; i++) currentBytes[i] = bin.charCodeAt(i);
 
-      dbg('PNG ready: ' + bytes.length + ' bytes (' + (bytes.length/1024).toFixed(1) + ' KB)');
+      dbg('ready: ' + currentBytes.length + ' bytes (' + (currentBytes.length/1024).toFixed(1) + ' KB)');
       document.getElementById('previewMeta').textContent =
-        '180×180 · Pebble 64-color dither\n' + (bytes.length/1024).toFixed(1) + ' KB PNG · ready to send';
+        '180×180 · Pebble 64-color dither\n' +
+        (currentBytes.length/1024).toFixed(1) + ' KB · tap Save & Send';
 
       showProg(false);
       document.getElementById('btnSend').disabled = false;
@@ -594,92 +495,139 @@ function processImage(img) {
   }, 30);
 }
 
-// ── Save ───────────────────────────────────────────────────────────────────
-function showSaveRow() {
-  document.getElementById('saveRow').className = 'save-row show';
-  document.getElementById('saveNameInput').focus();
-}
+// ── Save & Send ────────────────────────────────────────────────────────────
+//
+// FLOW:
+//   config.html  →  saves PNG to localStorage as image_index_N
+//   config.html  →  sends IMG_REQUEST:N to watch via Pebble.sendAppMessage
+//   watch (C)    →  receives N, stores N in persistent storage as current slot
+//   watch (C)    →  on next boot (or immediately) sends IMG_REQUEST:N to phone
+//   app.js       →  receives IMG_REQUEST:N, reads localStorage image_index_N
+//   app.js       →  runs transferImageBytes() → NETDL_BEGIN/DATA/END to watch
+//   watch (C)    →  netdownload assembles PNG → displays → saves to persistent storage
+//
+function saveAndSend() {
+  if (!currentDataURL || !currentBytes) { dbg('nothing to save'); return; }
 
-function saveCurrentImage() {
-  if (!currentBytes || !currentDataURL) return;
-  var name = document.getElementById('saveNameInput').value.trim();
-  if (!name) name = 'Image ' + (getSaved().length + 1);
+  var slot = bumpNextSlot();
+  var key  = 'image_index_' + slot;
 
-  var saved = getSaved();
-  saved.push({
-    id: Date.now(),
-    name: name,
+  // Persist to localStorage
+  var images = getImages();
+  images[slot] = {
+    key:     key,
     dataURL: currentDataURL,
-    size: currentBytes.length,
-    url: document.getElementById('urlInput').value.trim(),
+    size:    currentBytes.length,
     savedAt: new Date().toLocaleDateString()
-  });
-  setSaved(saved);
-  document.getElementById('saveRow').className = 'save-row';
-  document.getElementById('saveNameInput').value = '';
+  };
+  setImages(images);
+  setActiveSlot(slot);
   updateSavedCount();
-  dbg('saved: ' + name);
+  dbg('saved as ' + key + ' (slot ' + slot + ')');
+
+  sendSlotToWatch(slot);
 }
 
-function getSaved() {
-  try { return JSON.parse(localStorage.getItem('pf_images') || '[]'); }
-  catch(e) { return []; }
-}
-function setSaved(arr) {
-  localStorage.setItem('pf_images', JSON.stringify(arr));
-}
-function updateSavedCount() {
-  var n = getSaved().length;
-  document.getElementById('saved-count').textContent = n > 0 ? '(' + n + ')' : '';
+// ── Send slot index to watch ───────────────────────────────────────────────
+// This is a tiny message — just one integer.
+// The watch stores it and uses it to request the full image from app.js.
+function sendSlotToWatch(slot) {
+  if (typeof Pebble === 'undefined' || typeof Pebble.sendAppMessage !== 'function') {
+    dbg('Pebble not available — slot saved locally');
+    dbg('Watch will request image_index_' + slot + ' on next launch via app.js');
+    return;
+  }
+
+  showTransfer(true, 50, 'Sending slot ' + slot + ' to watch…');
+  document.getElementById('btnSend').disabled = true;
+
+  Pebble.sendAppMessage(
+    { 'IMG_REQUEST': slot },
+    function() {
+      dbg('IMG_REQUEST ack — watch knows to load image_index_' + slot);
+      showTransfer(true, 100, 'Watch received key ✓  Loading image…');
+      setTimeout(function() {
+        showTransfer(false);
+        document.getElementById('btnSend').disabled = false;
+        // Close settings page back to Pebble app
+        document.location = getReturnURL() +
+          encodeURIComponent(JSON.stringify({ action: 'done', slot: slot }));
+      }, 1500);
+    },
+    function(e) {
+      dbg('IMG_REQUEST nack: ' + e);
+      showTransfer(false);
+      document.getElementById('btnSend').disabled = false;
+    }
+  );
 }
 
-// ── Render saved list ──────────────────────────────────────────────────────
+// ── Saved list ─────────────────────────────────────────────────────────────
 function renderSavedList() {
-  var saved = getSaved();
-  var el = document.getElementById('imageList');
+  var images     = getImages();
+  var activeSlot = getActiveSlot();
+  var slots      = Object.keys(images);
+  var el         = document.getElementById('imageList');
   updateSavedCount();
 
-  if (saved.length === 0) {
-    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🖼️</div>No saved images yet.<br>Load an image and tap Save.</div>';
+  if (slots.length === 0) {
+    el.innerHTML =
+      '<div class="empty-state">' +
+      '<div class="empty-icon">🖼️</div>' +
+      'No saved images yet.<br>Load an image on the New Image tab.' +
+      '</div>';
     return;
   }
 
   el.innerHTML = '';
-  saved.forEach(function(item) {
-    var card = document.createElement('div');
-    card.className = 'image-card';
+  // Show newest first
+  slots.slice().reverse().forEach(function(slot) {
+    var item     = images[slot];
+    var isActive = parseInt(slot, 10) === activeSlot;
 
+    var card = document.createElement('div');
+    card.className = 'image-card' + (isActive ? ' active-card' : '');
+
+    // Thumbnail
     var thumbDiv = document.createElement('div');
     thumbDiv.className = 'card-thumb';
     var thumbCanvas = document.createElement('canvas');
     thumbCanvas.width = 52; thumbCanvas.height = 52;
     thumbDiv.appendChild(thumbCanvas);
-
-    // Draw thumbnail from saved dataURL
     var tImg = new Image();
     tImg.onload = function() {
       thumbCanvas.getContext('2d').drawImage(tImg, 0,0,180,180, 0,0,52,52);
     };
     tImg.src = item.dataURL;
 
+    // Info
     var info = document.createElement('div');
     info.className = 'card-info';
     info.innerHTML =
-      '<div class="card-name">' + escHtml(item.name) + '</div>' +
-      '<div class="card-meta">' + (item.size/1024).toFixed(1) + ' KB · ' + item.savedAt + '</div>';
+      '<div class="card-name">' + escHtml(item.key) + '</div>' +
+      '<div class="card-meta">' + (item.size/1024).toFixed(1) + ' KB · ' + item.savedAt + '</div>' +
+      (isActive ? '<div class="card-active-badge">● on watch</div>' : '');
 
+    // Actions
     var actions = document.createElement('div');
     actions.className = 'card-actions';
 
     var sendBtn = document.createElement('button');
     sendBtn.className = 'card-btn card-btn-send';
     sendBtn.textContent = 'Send';
-    sendBtn.onclick = (function(i) { return function() { sendSavedImage(i); }; })(item);
+    sendBtn.onclick = (function(s) {
+      return function() {
+        setActiveSlot(s);
+        sendSlotToWatch(s);
+      };
+    })(parseInt(slot, 10));
 
     var delBtn = document.createElement('button');
     delBtn.className = 'card-btn card-btn-del';
     delBtn.textContent = '✕';
-    delBtn.onclick = (function(id) { return function() { deleteImage(id); }; })(item.id);
+    delBtn.onclick = (function(s) {
+      return function() { deleteImage(s); };
+    })(slot);
 
     actions.appendChild(sendBtn);
     actions.appendChild(delBtn);
@@ -690,108 +638,32 @@ function renderSavedList() {
   });
 }
 
-function deleteImage(id) {
-  var saved = getSaved().filter(function(i) { return i.id !== id; });
-  setSaved(saved);
+function deleteImage(slot) {
+  var images = getImages();
+  delete images[slot];
+  setImages(images);
+  if (getActiveSlot() === parseInt(slot, 10)) {
+    localStorage.removeItem('pf_active_slot');
+  }
   renderSavedList();
-  dbg('deleted image id=' + id);
+  dbg('deleted slot ' + slot);
 }
 
 function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// ── Send saved image ───────────────────────────────────────────────────────
-function sendSavedImage(item) {
-  localStorage.setItem('pf_pending_send', item.dataURL);
-  var result = encodeURIComponent(JSON.stringify({ action: 'send' }));
-  document.location = getReturnURL() + result;
-}
-
-// ── Transfer ───────────────────────────────────────────────────────────────
+// ── Transfer overlay ───────────────────────────────────────────────────────
 function showTransfer(show, pct, label) {
-  document.getElementById('transferOverlay').className = 'transfer-overlay' + (show ? ' show' : '');
+  document.getElementById('transferOverlay').className =
+    'transfer-overlay' + (show ? ' show' : '');
   if (show) {
     document.getElementById('transferFill').style.width = pct + '%';
     document.getElementById('transferLabel').textContent = label || '';
   }
 }
 
-function sendToWatch(bytes) {
-  if (!bytes) { dbg('no bytes to send'); return; }
-
-  if (typeof Pebble === 'undefined' || typeof Pebble.sendAppMessage !== 'function') {
-    dbg('ERROR: Pebble.sendAppMessage not available');
-    dbg('Must be opened from within the Pebble app');
-    return;
-  }
-
-  var total = bytes.length;
-  dbg('starting transfer: ' + total + ' bytes');
-  showTransfer(true, 0, 'Starting…');
-  document.getElementById('btnSend').disabled = true;
-
-  Pebble.sendAppMessage(
-    { 'NETDL_BEGIN': total },
-    function() {
-      dbg('NETDL_BEGIN ack');
-      sendChunk(0);
-    },
-    function(e) {
-      dbg('NETDL_BEGIN nack: ' + e);
-      showTransfer(false);
-      document.getElementById('btnSend').disabled = false;
-    }
-  );
-
-  function sendChunk(offset) {
-    if (offset >= total) {
-      Pebble.sendAppMessage(
-        { 'NETDL_END': total },
-        function() {
-          dbg('done!');
-          showTransfer(true, 100, 'Done! ✓');
-          setTimeout(function() {
-            showTransfer(false);
-            document.getElementById('btnSend').disabled = false;
-            var ret = getReturnURL();
-            if (ret !== 'pebblejs://close#') {
-              document.location = ret + encodeURIComponent(JSON.stringify({ action: 'done' }));
-            }
-          }, 1200);
-        },
-        function(e) {
-          dbg('NETDL_END nack: ' + e);
-          showTransfer(false);
-          document.getElementById('btnSend').disabled = false;
-        }
-      );
-      return;
-    }
-
-    var slice = bytes.slice(offset, offset + CHUNK_SIZE);
-    var pct = Math.round((offset / total) * 100);
-    showTransfer(true, pct, pct + '% · ' + offset + ' / ' + total + ' bytes');
-
-    Pebble.sendAppMessage(
-      { 'NETDL_DATA': slice },
-      function() { sendChunk(offset + CHUNK_SIZE); },
-      function(e) {
-        dbg('chunk nack at ' + offset + ', retrying…');
-        Pebble.sendAppMessage(
-          { 'NETDL_DATA': slice },
-          function() { sendChunk(offset + CHUNK_SIZE); },
-          function(e2) {
-            dbg('chunk retry failed: ' + e2);
-            showTransfer(false);
-            document.getElementById('btnSend').disabled = false;
-          }
-        );
-      }
-    );
-  }
-}
-
+// ── Return URL (passed by Pebble app as ?return_to=...) ────────────────────
 function getReturnURL() {
   var q = location.search.substring(1);
   var vars = q.split('&');
@@ -804,23 +676,9 @@ function getReturnURL() {
 
 // ── Init ───────────────────────────────────────────────────────────────────
 updateSavedCount();
-
-// Allow pressing Enter in URL field
 document.getElementById('urlInput').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') loadURL();
 });
-
-document.getElementById('btnSend').addEventListener('click', function() {
-  if (!currentDataURL) return;
-  
-  // Store PNG in localStorage
-  localStorage.setItem('pf_pending_send', currentDataURL);
-  dbg('Stored in localStorage, closing…');
-  
-  var result = encodeURIComponent(JSON.stringify({ action: 'send' }));
-  document.location = getReturnURL() + result;
-});
-
 </script>
 </body>
 </html>
