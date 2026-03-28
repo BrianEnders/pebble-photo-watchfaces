@@ -369,6 +369,180 @@
     return 'pebblejs://close#';
   }
 
+  // ── CRC32 table ────────────────────────────────────────────────────────────
+  var CRC_TABLE = (function() {
+    var t = [];
+    for (var i = 0; i < 256; i++) {
+      var c = i;
+      for (var j = 0; j < 8; j++) {
+        c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      }
+      t[i] = c;
+    }
+    return t;
+  }());
+  
+  function crc32(arr, start, len) {
+    var crc = 0xFFFFFFFF;
+    for (var i = start; i < start + len; i++) {
+      crc = CRC_TABLE[(crc ^ arr[i]) & 0xFF] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+  
+  // ── Adler32 (needed for zlib header) ──────────────────────────────────────
+  function adler32(arr) {
+    var s1 = 1, s2 = 0;
+    for (var i = 0; i < arr.length; i++) {
+      s1 = (s1 + arr[i]) % 65521;
+      s2 = (s2 + s1)     % 65521;
+    }
+    return (s2 << 16) | s1;
+  }
+  
+  // ── Write uint32 big-endian into array at pos ──────────────────────────────
+  function writeU32(arr, pos, val) {
+    arr[pos]   = (val >>> 24) & 0xFF;
+    arr[pos+1] = (val >>> 16) & 0xFF;
+    arr[pos+2] = (val >>>  8) & 0xFF;
+    arr[pos+3] =  val         & 0xFF;
+  }
+  
+  // ── Build a PNG chunk [length][type][data][crc] ────────────────────────────
+  function pngChunk(type, data) {
+    var typeBytes = [
+      type.charCodeAt(0), type.charCodeAt(1),
+      type.charCodeAt(2), type.charCodeAt(3)
+    ];
+    var len = data.length;
+    var chunk = new Array(4 + 4 + len + 4);
+  
+    // Length
+    writeU32(chunk, 0, len);
+    // Type
+    chunk[4] = typeBytes[0]; chunk[5] = typeBytes[1];
+    chunk[6] = typeBytes[2]; chunk[7] = typeBytes[3];
+    // Data
+    for (var i = 0; i < len; i++) chunk[8 + i] = data[i];
+    // CRC over type + data
+    var crc = crc32(chunk, 4, 4 + len);
+    writeU32(chunk, 8 + len, crc);
+  
+    return chunk;
+  }
+  
+  // ── zlib store (deflate type 0 = no compression) ──────────────────────────
+  // raw is a flat array of bytes to wrap in zlib/deflate framing
+  function zlibStore(raw) {
+    // deflate store block: BFINAL=1 BTYPE=00 LEN NLEN data
+    // max block size = 65535, so we may need multiple blocks
+    var BLOCK = 65535;
+    var blocks = [];
+  
+    for (var offset = 0; offset < raw.length; offset += BLOCK) {
+      var slice    = raw.slice(offset, offset + BLOCK);
+      var len      = slice.length;
+      var isFinal  = (offset + BLOCK >= raw.length) ? 1 : 0;
+      var nlen     = (~len) & 0xFFFF;
+  
+      var block = [
+        isFinal,             // BFINAL | BTYPE=00
+        len  & 0xFF,         // LEN low
+        (len >> 8) & 0xFF,   // LEN high
+        nlen & 0xFF,         // NLEN low
+        (nlen >> 8) & 0xFF   // NLEN high
+      ];
+      for (var i = 0; i < slice.length; i++) block.push(slice[i]);
+      blocks.push(block);
+    }
+  
+    // Flatten blocks
+    var deflated = [];
+    for (var b = 0; b < blocks.length; b++) {
+      for (var j = 0; j < blocks[b].length; j++) deflated.push(blocks[b][j]);
+    }
+  
+    // zlib header: CMF=0x78 FLG=0x01 (deflate, no dict, check bits)
+    // 0x7801 % 31 === 0 ✓
+    var adler = adler32(raw);
+    var zlib = [0x78, 0x01].concat(deflated);
+    // Adler32 checksum big-endian at end
+    zlib.push((adler >>> 24) & 0xFF);
+    zlib.push((adler >>> 16) & 0xFF);
+    zlib.push((adler >>>  8) & 0xFF);
+    zlib.push( adler         & 0xFF);
+  
+    return zlib;
+  }
+  
+  // ── Build 8-bit indexed PNG ────────────────────────────────────────────────
+  function buildIndexedPNG(ctx, w, h) {
+    // ── Palette: Pebble 64 colors ──
+    var palette = [];
+    for (var r = 0; r < 4; r++) for (var g = 0; g < 4; g++) for (var b = 0; b < 4; b++) {
+      palette.push([r*85, g*85, b*85]);
+    }
+  
+    // Build lookup: "R,G,B" → palette index
+    var palMap = {};
+    for (var p = 0; p < palette.length; p++) {
+      palMap[palette[p][0] + ',' + palette[p][1] + ',' + palette[p][2]] = p;
+    }
+  
+    // ── Raw pixel data: filter byte (0x00) + indices per row ──
+    var id      = ctx.getImageData(0, 0, w, h);
+    var pixels  = id.data;
+    var rawData = [];
+  
+    for (var row = 0; row < h; row++) {
+      rawData.push(0); // PNG filter type: None
+      for (var col = 0; col < w; col++) {
+        var idx = (row * w + col) * 4;
+        var key = pixels[idx] + ',' + pixels[idx+1] + ',' + pixels[idx+2];
+        var palIdx = palMap[key];
+        rawData.push(palIdx !== undefined ? palIdx : 0);
+      }
+    }
+  
+    // ── IHDR chunk ──
+    // width, height, bit depth=8, color type=3 (indexed), compress=0, filter=0, interlace=0
+    var ihdr = new Array(13);
+    writeU32(ihdr, 0, w);
+    writeU32(ihdr, 4, h);
+    ihdr[8]  = 8; // bit depth
+    ihdr[9]  = 3; // color type: indexed
+    ihdr[10] = 0; // compression
+    ihdr[11] = 0; // filter
+    ihdr[12] = 0; // interlace
+    var ihdrChunk = pngChunk('IHDR', ihdr);
+  
+    // ── PLTE chunk ──
+    var plte = [];
+    for (var pi = 0; pi < palette.length; pi++) {
+      plte.push(palette[pi][0]);
+      plte.push(palette[pi][1]);
+      plte.push(palette[pi][2]);
+    }
+    var plteChunk = pngChunk('PLTE', plte);
+  
+    // ── IDAT chunk (zlib-wrapped pixel data) ──
+    var compressed = zlibStore(rawData);
+    var idatChunk  = pngChunk('IDAT', compressed);
+  
+    // ── IEND chunk ──
+    var iendChunk = pngChunk('IEND', []);
+  
+    // ── PNG signature + all chunks ──
+    var sig = [137, 80, 78, 71, 13, 10, 26, 10];
+    var png = sig
+      .concat(ihdrChunk)
+      .concat(plteChunk)
+      .concat(idatChunk)
+      .concat(iendChunk);
+  
+    return png; // plain array of byte values
+  }
+
   var action = getParam('action');
   if (action !== 'get_chunk') return; // not chunk mode — load normal UI
 
@@ -610,24 +784,37 @@ function processImage(img) {
       .getContext('2d').drawImage(work, 0,0,180,180, 0,0,130,130);
     document.getElementById('previewArea').className = 'preview-area show';
 
-    showProg(true, 75, 'Encoding PNG…');
-    setTimeout(function() {
-      var dataURL = work.toDataURL('image/png');
-      currentDataURL = dataURL;
-      var b64 = dataURL.split(',')[1];
-      var bin = atob(b64);
-      currentBytes = new Array(bin.length);
-      for (var i=0; i<bin.length; i++) currentBytes[i] = bin.charCodeAt(i);
-
-      dbg('ready: ' + currentBytes.length + ' bytes (' + (currentBytes.length/1024).toFixed(1) + ' KB)');
-      document.getElementById('previewMeta').textContent =
-        '180×180 · Pebble 64-color dither\n' +
-        (currentBytes.length/1024).toFixed(1) + ' KB · tap Save & Send';
-
-      showProg(false);
-      document.getElementById('btnSend').disabled = false;
-      document.getElementById('actionRow').style.display = 'flex';
-    }, 30);
+    showProg(true, 75, 'Encoding indexed PNG…');
+      setTimeout(function() {
+      
+        // Build 8-bit indexed PNG directly — much smaller than canvas toDataURL
+        var pngBytes = buildIndexedPNG(wctx, 180, 180);
+      
+        // Convert to base64 manually (no btoa in some environments)
+        var b64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+        var b64 = '';
+        for (var i = 0; i < pngBytes.length; i += 3) {
+          var a = pngBytes[i];
+          var b = i+1 < pngBytes.length ? pngBytes[i+1] : 0;
+          var c = i+2 < pngBytes.length ? pngBytes[i+2] : 0;
+          b64 += b64chars[(a >> 2) & 0x3F];
+          b64 += b64chars[((a & 0x3) << 4) | ((b >> 4) & 0xF)];
+          b64 += i+1 < pngBytes.length ? b64chars[((b & 0xF) << 2) | ((c >> 6) & 0x3)] : '=';
+          b64 += i+2 < pngBytes.length ? b64chars[c & 0x3F] : '=';
+        }
+      
+        currentDataURL = 'data:image/png;base64,' + b64;
+        currentBytes   = pngBytes;
+      
+        dbg('Indexed PNG: ' + pngBytes.length + ' bytes (' + (pngBytes.length/1024).toFixed(1) + ' KB)');
+        document.getElementById('previewMeta').textContent =
+          '180×180 · 8-bit indexed · 64 colors\n' +
+          (pngBytes.length/1024).toFixed(1) + ' KB · tap Save & Send';
+      
+        showProg(false);
+        document.getElementById('btnSend').disabled = false;
+        document.getElementById('actionRow').style.display = 'flex';
+      }, 30);
   }, 30);
 }
 
