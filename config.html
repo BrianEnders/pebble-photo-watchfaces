@@ -5,6 +5,74 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Photo Watchface</title>
 <style>
+  (function() {
+    function getParam(name) {
+      var q = location.search.substring(1).split('&');
+      for (var i = 0; i < q.length; i++) {
+        var p = q[i].split('=');
+        if (decodeURIComponent(p[0]) === name) return decodeURIComponent(p[1] || '');
+      }
+      return null;
+    }
+  
+    var action = getParam('action');
+    if (action !== 'get_chunk') return; // normal UI mode, continue loading page
+  
+    // ── Chunk mode — show minimal UI and close immediately with data ──
+    document.addEventListener('DOMContentLoaded', function() {
+      var slot   = parseInt(getParam('slot'),   10);
+      var offset = parseInt(getParam('offset'), 10);
+      var CHUNK  = 3500; // safe chars per round trip
+  
+      document.body.style.cssText =
+        'background:#0e0e0e;color:#4ae8a0;font-family:monospace;' +
+        'font-size:13px;display:flex;align-items:center;' +
+        'justify-content:center;height:100vh;text-align:center;';
+      document.body.innerHTML =
+        '<div>📡 Transferring to app<br>' +
+        'slot=' + slot + '  offset=' + offset + '</div>';
+  
+      // Read image from localStorage
+      var images, item;
+      try {
+        images = JSON.parse(localStorage.getItem('pf_images') || '{}');
+        item   = images[slot];
+      } catch(e) { item = null; }
+  
+      var returnURL = (function() {
+        var q = location.search.substring(1).split('&');
+        for (var i = 0; i < q.length; i++) {
+          var p = q[i].split('=');
+          if (decodeURIComponent(p[0]) === 'return_to')
+            return decodeURIComponent(p[1]);
+        }
+        return 'pebblejs://close#';
+      })();
+  
+      if (!item || !item.dataURL) {
+        document.location = returnURL +
+          encodeURIComponent(JSON.stringify({ action: 'chunk_error', slot: slot, reason: 'not_found' }));
+        return;
+      }
+  
+      // Extract just the base64 string (strip data:image/png;base64,)
+      var b64   = item.dataURL.split(',')[1];
+      var total = b64.length;
+      var chunk = b64.substring(offset, offset + CHUNK);
+  
+      setTimeout(function() {
+        document.location = returnURL +
+          encodeURIComponent(JSON.stringify({
+            action:  'chunk',
+            slot:    slot,
+            offset:  offset,
+            total:   total,
+            data:    chunk
+          }));
+      }, 100); // tiny delay so user sees the progress text
+    });
+  })();
+  
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
 
   :root {
@@ -247,7 +315,7 @@
   <div class="header-icon">⌚</div>
   <div>
     <h1>PHOTO WATCHFACE</h1>
-    <p>Pebble Time Round · 180×180 · 64 colors v0.14</p>
+    <p>Pebble Time Round · 180×180 · 64 colors v0.15</p>
   </div>
 </header>
 
