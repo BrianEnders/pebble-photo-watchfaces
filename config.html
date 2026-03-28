@@ -363,7 +363,7 @@
   <div class="header-icon">⌚</div>
   <div>
     <h1>PHOTO WATCHFACE</h1>
-    <p>Pebble Time Round · 180×180 0.11</p>
+    <p>Pebble Time Round · 180×180 0.12</p>
   </div>
 </header>
 
@@ -814,18 +814,16 @@ document.getElementById('urlInput').addEventListener('keydown', function(e) {
 });
 
 document.getElementById('btnSend').addEventListener('click', function() {
-  if (!currentBytes || !currentDataURL) return;
+  if (!currentDataURL) return;
   
-  dbg('Returning image to app…');
+  // Store PNG in localStorage
+  localStorage.setItem('pf_pending_send', currentDataURL);
+  dbg('Stored in localStorage, closing…');
   
-  // Send the base64 PNG back via webviewclosed
-  var result = encodeURIComponent(JSON.stringify({
-    action: 'send',
-    imageData: currentDataURL  // base64 PNG
-  }));
-  
+  var result = encodeURIComponent(JSON.stringify({ action: 'send' }));
   document.location = getReturnURL() + result;
 });
+
 </script>
 </body>
 </html>
