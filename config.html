@@ -703,12 +703,9 @@ function escHtml(s) {
 
 // ── Send saved image ───────────────────────────────────────────────────────
 function sendSavedImage(item) {
-  dbg('preparing saved image: ' + item.name);
-  var b64 = item.dataURL.split(',')[1];
-  var bin = atob(b64);
-  var bytes = new Array(bin.length);
-  for (var i=0; i<bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  sendToWatch(bytes);
+  localStorage.setItem('pf_pending_send', item.dataURL);
+  var result = encodeURIComponent(JSON.stringify({ action: 'send' }));
+  document.location = getReturnURL() + result;
 }
 
 // ── Transfer ───────────────────────────────────────────────────────────────
