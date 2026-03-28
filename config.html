@@ -247,7 +247,7 @@
   <div class="header-icon">⌚</div>
   <div>
     <h1>PHOTO WATCHFACE</h1>
-    <p>Pebble Time Round · 180×180 · 64 colors v0.13</p>
+    <p>Pebble Time Round · 180×180 · 64 colors v0.14</p>
   </div>
 </header>
 
@@ -532,34 +532,9 @@ function saveAndSend() {
 // This is a tiny message — just one integer.
 // The watch stores it and uses it to request the full image from app.js.
 function sendSlotToWatch(slot) {
-  if (typeof Pebble === 'undefined' || typeof Pebble.sendAppMessage !== 'function') {
-    dbg('Pebble not available — slot saved locally');
-    dbg('Watch will request image_index_' + slot + ' on next launch via app.js');
-    return;
-  }
-
-  showTransfer(true, 50, 'Sending slot ' + slot + ' to watch…');
-  document.getElementById('btnSend').disabled = true;
-
-  Pebble.sendAppMessage(
-    { 'IMG_REQUEST': slot },
-    function() {
-      dbg('IMG_REQUEST ack — watch knows to load image_index_' + slot);
-      showTransfer(true, 100, 'Watch received key ✓  Loading image…');
-      setTimeout(function() {
-        showTransfer(false);
-        document.getElementById('btnSend').disabled = false;
-        // Close settings page back to Pebble app
-        document.location = getReturnURL() +
-          encodeURIComponent(JSON.stringify({ action: 'done', slot: slot }));
-      }, 1500);
-    },
-    function(e) {
-      dbg('IMG_REQUEST nack: ' + e);
-      showTransfer(false);
-      document.getElementById('btnSend').disabled = false;
-    }
-  );
+  dbg('closing with slot ' + slot + ' → app.js will handle transfer');
+  document.location = getReturnURL() +
+    encodeURIComponent(JSON.stringify({ action: 'send', slot: slot }));
 }
 
 // ── Saved list ─────────────────────────────────────────────────────────────
