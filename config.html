@@ -380,7 +380,7 @@
 
     var slot   = parseInt(getParam('slot'),   10);
     var offset = parseInt(getParam('offset'), 10);
-    var CHUNK  = 3500;
+    var CHUNK = 3500 - (3500 % 4); // = 3500 (already divisible by 4, but good practice)
     var returnURL = getReturnURL();
 
     // Show progress
