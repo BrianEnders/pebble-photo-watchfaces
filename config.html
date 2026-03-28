@@ -237,7 +237,6 @@
     white-space: pre-wrap; word-break: break-all;
   }
 
-  /* ── Chunk mode UI ── */
   .chunk-screen {
     display: none;
     flex-direction: column;
@@ -265,22 +264,20 @@
 </head>
 <body>
 
-<!-- ── Chunk transfer screen (shown when app.js opens us for a chunk) ── -->
 <div class="chunk-screen" id="chunkScreen">
-  <div class="chunk-title">📡 Transferring Image</div>
+  <div class="chunk-title">&#x1F4E1; Transferring Image</div>
   <div class="chunk-prog-track">
     <div class="chunk-prog-fill" id="chunkProgFill"></div>
   </div>
-  <div class="chunk-sub" id="chunkSub">Reading chunk…</div>
+  <div class="chunk-sub" id="chunkSub">Reading chunk&#x2026;</div>
 </div>
 
-<!-- ── Normal UI (hidden during chunk mode) ── -->
 <div id="normalUI">
   <header>
-    <div class="header-icon">⌚</div>
+    <div class="header-icon">&#x231A;</div>
     <div>
       <h1>PHOTO WATCHFACE</h1>
-      <p>Pebble Time Round · 180×180 · v0.19 64 colors</p>
+      <p>Pebble Time Round · 180×180 v0.20 · 64 colors</p>
     </div>
   </header>
 
@@ -290,7 +287,6 @@
     <div class="tab"        id="tab-log"   onclick="switchTab('log')">LOG</div>
   </div>
 
-  <!-- NEW IMAGE -->
   <div class="panel active" id="panel-new">
     <div class="section-label">Image URL</div>
     <div class="input-row">
@@ -319,20 +315,17 @@
     </div>
   </div>
 
-  <!-- SAVED -->
   <div class="panel" id="panel-saved">
     <div id="imageList"></div>
   </div>
 
-  <!-- LOG -->
   <div class="panel" id="panel-log">
     <div id="log">ready
 </div>
   </div>
 
-  <!-- Transfer overlay (used when re-sending a saved image) -->
   <div class="transfer-overlay" id="transferOverlay">
-    <div class="transfer-title">📡 SENDING KEY TO WATCH</div>
+    <div class="transfer-title">&#x1F4E1; SENDING KEY TO WATCH</div>
     <div class="transfer-prog-track">
       <div class="transfer-prog-fill" id="transferFill"></div>
     </div>
@@ -344,243 +337,228 @@
 
 <script>
 // ════════════════════════════════════════════════════════════════════════════
-// CHUNK MODE — runs first, before anything else.
-// When app.js opens config.html?action=get_chunk&slot=N&offset=N we skip
-// all normal UI and immediately return the requested chunk then close.
+// GLOBAL HELPERS — available in both chunk mode and normal mode
 // ════════════════════════════════════════════════════════════════════════════
-(function() {
-  function getParam(name) {
-    var q = location.search.substring(1).split('&');
-    for (var i = 0; i < q.length; i++) {
-      var p = q[i].split('=');
-      if (decodeURIComponent(p[0]) === name) {
-        return p.length > 1 ? decodeURIComponent(p[1]) : '';
+
+function getParam(name) {
+  var q = location.search.substring(1).split('&');
+  for (var i = 0; i < q.length; i++) {
+    var p = q[i].split('=');
+    if (decodeURIComponent(p[0]) === name) {
+      return p.length > 1 ? decodeURIComponent(p[1]) : '';
+    }
+  }
+  return null;
+}
+
+function getReturnURL() {
+  var q = location.search.substring(1).split('&');
+  for (var i = 0; i < q.length; i++) {
+    var p = q[i].split('=');
+    if (decodeURIComponent(p[0]) === 'return_to') return decodeURIComponent(p[1]);
+  }
+  return 'pebblejs://close#';
+}
+
+// ── CRC32 ──────────────────────────────────────────────────────────────────
+var CRC_TABLE = (function() {
+  var t = [];
+  for (var i = 0; i < 256; i++) {
+    var c = i;
+    for (var j = 0; j < 8; j++) {
+      c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    }
+    t[i] = c;
+  }
+  return t;
+}());
+
+function crc32(arr, start, len) {
+  var crc = 0xFFFFFFFF;
+  for (var i = start; i < start + len; i++) {
+    crc = CRC_TABLE[(crc ^ arr[i]) & 0xFF] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+// ── Adler32 ────────────────────────────────────────────────────────────────
+function adler32(arr) {
+  var s1 = 1, s2 = 0;
+  for (var i = 0; i < arr.length; i++) {
+    s1 = (s1 + arr[i]) % 65521;
+    s2 = (s2 + s1)     % 65521;
+  }
+  return (s2 << 16) | s1;
+}
+
+// ── Write uint32 big-endian ────────────────────────────────────────────────
+function writeU32(arr, pos, val) {
+  arr[pos]   = (val >>> 24) & 0xFF;
+  arr[pos+1] = (val >>> 16) & 0xFF;
+  arr[pos+2] = (val >>>  8) & 0xFF;
+  arr[pos+3] =  val         & 0xFF;
+}
+
+// ── PNG chunk builder ──────────────────────────────────────────────────────
+// Use explicit char codes — avoid charCodeAt for old WebView compat
+var PNG_TYPE_BYTES = {
+  'IHDR': [73,72,68,82],
+  'PLTE': [80,76,84,69],
+  'IDAT': [73,68,65,84],
+  'IEND': [73,69,78,68]
+};
+
+function pngChunk(type, data) {
+  var typeBytes = PNG_TYPE_BYTES[type];
+  var len   = data.length;
+  var chunk = new Array(4 + 4 + len + 4);
+
+  writeU32(chunk, 0, len);
+  chunk[4] = typeBytes[0]; chunk[5] = typeBytes[1];
+  chunk[6] = typeBytes[2]; chunk[7] = typeBytes[3];
+  for (var i = 0; i < len; i++) chunk[8 + i] = data[i];
+  var crc = crc32(chunk, 4, 4 + len);
+  writeU32(chunk, 8 + len, crc);
+  return chunk;
+}
+
+// ── zlib store (deflate type 0 — no compression) ───────────────────────────
+function zlibStore(raw) {
+  var BLOCK    = 65535;
+  var deflated = [];
+
+  for (var offset = 0; offset < raw.length; offset += BLOCK) {
+    var slice   = raw.slice(offset, offset + BLOCK);
+    var len     = slice.length;
+    var isFinal = (offset + BLOCK >= raw.length) ? 1 : 0;
+    var nlen    = (~len) & 0xFFFF;
+
+    deflated.push(isFinal);
+    deflated.push(len  & 0xFF);
+    deflated.push((len >> 8) & 0xFF);
+    deflated.push(nlen & 0xFF);
+    deflated.push((nlen >> 8) & 0xFF);
+    for (var i = 0; i < slice.length; i++) deflated.push(slice[i]);
+  }
+
+  // zlib header 0x78 0x01, then deflate blocks, then adler32
+  var adler = adler32(raw);
+  var zlib  = [0x78, 0x01].concat(deflated);
+  zlib.push((adler >>> 24) & 0xFF);
+  zlib.push((adler >>> 16) & 0xFF);
+  zlib.push((adler >>>  8) & 0xFF);
+  zlib.push( adler         & 0xFF);
+  return zlib;
+}
+
+// ── Build 8-bit indexed PNG ────────────────────────────────────────────────
+function buildIndexedPNG(ctx, w, h) {
+  // Pebble 64-color palette
+  var palette = [];
+  for (var r = 0; r < 4; r++) {
+    for (var g = 0; g < 4; g++) {
+      for (var b = 0; b < 4; b++) {
+        palette.push([r*85, g*85, b*85]);
       }
     }
-    return null;
   }
 
-  function getReturnURL() {
-    var q = location.search.substring(1).split('&');
-    for (var i = 0; i < q.length; i++) {
-      var p = q[i].split('=');
-      if (decodeURIComponent(p[0]) === 'return_to') return decodeURIComponent(p[1]);
-    }
-    return 'pebblejs://close#';
+  // Build lookup map: "R,G,B" → index
+  var palMap = {};
+  for (var p = 0; p < palette.length; p++) {
+    palMap[palette[p][0] + ',' + palette[p][1] + ',' + palette[p][2]] = p;
   }
 
-  // ── CRC32 table ────────────────────────────────────────────────────────────
-  var CRC_TABLE = (function() {
-    var t = [];
-    for (var i = 0; i < 256; i++) {
-      var c = i;
-      for (var j = 0; j < 8; j++) {
-        c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
-      }
-      t[i] = c;
+  // Raw scanline data: filter byte (0) + one index byte per pixel
+  var id      = ctx.getImageData(0, 0, w, h);
+  var pixels  = id.data;
+  var rawData = [];
+
+  for (var row = 0; row < h; row++) {
+    rawData.push(0); // filter type: None
+    for (var col = 0; col < w; col++) {
+      var px  = (row * w + col) * 4;
+      var key = pixels[px] + ',' + pixels[px+1] + ',' + pixels[px+2];
+      rawData.push(palMap[key] !== undefined ? palMap[key] : 0);
     }
-    return t;
-  }());
-  
-  function crc32(arr, start, len) {
-    var crc = 0xFFFFFFFF;
-    for (var i = start; i < start + len; i++) {
-      crc = CRC_TABLE[(crc ^ arr[i]) & 0xFF] ^ (crc >>> 8);
-    }
-    return (crc ^ 0xFFFFFFFF) >>> 0;
-  }
-  
-  // ── Adler32 (needed for zlib header) ──────────────────────────────────────
-  function adler32(arr) {
-    var s1 = 1, s2 = 0;
-    for (var i = 0; i < arr.length; i++) {
-      s1 = (s1 + arr[i]) % 65521;
-      s2 = (s2 + s1)     % 65521;
-    }
-    return (s2 << 16) | s1;
-  }
-  
-  // ── Write uint32 big-endian into array at pos ──────────────────────────────
-  function writeU32(arr, pos, val) {
-    arr[pos]   = (val >>> 24) & 0xFF;
-    arr[pos+1] = (val >>> 16) & 0xFF;
-    arr[pos+2] = (val >>>  8) & 0xFF;
-    arr[pos+3] =  val         & 0xFF;
-  }
-  
-  // ── Build a PNG chunk [length][type][data][crc] ────────────────────────────
-  function pngChunk(type, data) {
-    var typeBytes = [
-      type.charCodeAt(0), type.charCodeAt(1),
-      type.charCodeAt(2), type.charCodeAt(3)
-    ];
-    var len = data.length;
-    var chunk = new Array(4 + 4 + len + 4);
-  
-    // Length
-    writeU32(chunk, 0, len);
-    // Type
-    chunk[4] = typeBytes[0]; chunk[5] = typeBytes[1];
-    chunk[6] = typeBytes[2]; chunk[7] = typeBytes[3];
-    // Data
-    for (var i = 0; i < len; i++) chunk[8 + i] = data[i];
-    // CRC over type + data
-    var crc = crc32(chunk, 4, 4 + len);
-    writeU32(chunk, 8 + len, crc);
-  
-    return chunk;
-  }
-  
-  // ── zlib store (deflate type 0 = no compression) ──────────────────────────
-  // raw is a flat array of bytes to wrap in zlib/deflate framing
-  function zlibStore(raw) {
-    // deflate store block: BFINAL=1 BTYPE=00 LEN NLEN data
-    // max block size = 65535, so we may need multiple blocks
-    var BLOCK = 65535;
-    var blocks = [];
-  
-    for (var offset = 0; offset < raw.length; offset += BLOCK) {
-      var slice    = raw.slice(offset, offset + BLOCK);
-      var len      = slice.length;
-      var isFinal  = (offset + BLOCK >= raw.length) ? 1 : 0;
-      var nlen     = (~len) & 0xFFFF;
-  
-      var block = [
-        isFinal,             // BFINAL | BTYPE=00
-        len  & 0xFF,         // LEN low
-        (len >> 8) & 0xFF,   // LEN high
-        nlen & 0xFF,         // NLEN low
-        (nlen >> 8) & 0xFF   // NLEN high
-      ];
-      for (var i = 0; i < slice.length; i++) block.push(slice[i]);
-      blocks.push(block);
-    }
-  
-    // Flatten blocks
-    var deflated = [];
-    for (var b = 0; b < blocks.length; b++) {
-      for (var j = 0; j < blocks[b].length; j++) deflated.push(blocks[b][j]);
-    }
-  
-    // zlib header: CMF=0x78 FLG=0x01 (deflate, no dict, check bits)
-    // 0x7801 % 31 === 0 ✓
-    var adler = adler32(raw);
-    var zlib = [0x78, 0x01].concat(deflated);
-    // Adler32 checksum big-endian at end
-    zlib.push((adler >>> 24) & 0xFF);
-    zlib.push((adler >>> 16) & 0xFF);
-    zlib.push((adler >>>  8) & 0xFF);
-    zlib.push( adler         & 0xFF);
-  
-    return zlib;
-  }
-  
-  // ── Build 8-bit indexed PNG ────────────────────────────────────────────────
-  function buildIndexedPNG(ctx, w, h) {
-    // ── Palette: Pebble 64 colors ──
-    var palette = [];
-    for (var r = 0; r < 4; r++) for (var g = 0; g < 4; g++) for (var b = 0; b < 4; b++) {
-      palette.push([r*85, g*85, b*85]);
-    }
-  
-    // Build lookup: "R,G,B" → palette index
-    var palMap = {};
-    for (var p = 0; p < palette.length; p++) {
-      palMap[palette[p][0] + ',' + palette[p][1] + ',' + palette[p][2]] = p;
-    }
-  
-    // ── Raw pixel data: filter byte (0x00) + indices per row ──
-    var id      = ctx.getImageData(0, 0, w, h);
-    var pixels  = id.data;
-    var rawData = [];
-  
-    for (var row = 0; row < h; row++) {
-      rawData.push(0); // PNG filter type: None
-      for (var col = 0; col < w; col++) {
-        var idx = (row * w + col) * 4;
-        var key = pixels[idx] + ',' + pixels[idx+1] + ',' + pixels[idx+2];
-        var palIdx = palMap[key];
-        rawData.push(palIdx !== undefined ? palIdx : 0);
-      }
-    }
-  
-    // ── IHDR chunk ──
-    // width, height, bit depth=8, color type=3 (indexed), compress=0, filter=0, interlace=0
-    var ihdr = new Array(13);
-    writeU32(ihdr, 0, w);
-    writeU32(ihdr, 4, h);
-    ihdr[8]  = 8; // bit depth
-    ihdr[9]  = 3; // color type: indexed
-    ihdr[10] = 0; // compression
-    ihdr[11] = 0; // filter
-    ihdr[12] = 0; // interlace
-    var ihdrChunk = pngChunk('IHDR', ihdr);
-  
-    // ── PLTE chunk ──
-    var plte = [];
-    for (var pi = 0; pi < palette.length; pi++) {
-      plte.push(palette[pi][0]);
-      plte.push(palette[pi][1]);
-      plte.push(palette[pi][2]);
-    }
-    var plteChunk = pngChunk('PLTE', plte);
-  
-    // ── IDAT chunk (zlib-wrapped pixel data) ──
-    var compressed = zlibStore(rawData);
-    var idatChunk  = pngChunk('IDAT', compressed);
-  
-    // ── IEND chunk ──
-    var iendChunk = pngChunk('IEND', []);
-  
-    // ── PNG signature + all chunks ──
-    var sig = [137, 80, 78, 71, 13, 10, 26, 10];
-    var png = sig
-      .concat(ihdrChunk)
-      .concat(plteChunk)
-      .concat(idatChunk)
-      .concat(iendChunk);
-  
-    return png; // plain array of byte values
   }
 
-  var action = getParam('action');
-  if (action !== 'get_chunk') return; // not chunk mode — load normal UI
+  // IHDR: width, height, 8-bit depth, color type 3 (indexed)
+  var ihdr = new Array(13);
+  writeU32(ihdr, 0, w);
+  writeU32(ihdr, 4, h);
+  ihdr[8]=8; ihdr[9]=3; ihdr[10]=0; ihdr[11]=0; ihdr[12]=0;
 
-  // ── We are in chunk mode ──
-  // Hide normal UI immediately, show chunk screen
+  // PLTE: R G B per entry
+  var plte = [];
+  for (var pi = 0; pi < palette.length; pi++) {
+    plte.push(palette[pi][0]);
+    plte.push(palette[pi][1]);
+    plte.push(palette[pi][2]);
+  }
+
+  // IDAT: zlib-wrapped scanlines
+  var idat = zlibStore(rawData);
+
+  // Assemble: signature + chunks
+  var sig = [137, 80, 78, 71, 13, 10, 26, 10];
+  return sig
+    .concat(pngChunk('IHDR', ihdr))
+    .concat(pngChunk('PLTE', plte))
+    .concat(pngChunk('IDAT', idat))
+    .concat(pngChunk('IEND', []));
+}
+
+// ── Manual base64 encode (no btoa in old WebView) ─────────────────────────
+var B64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+function bytesToBase64(bytes) {
+  var b64 = '';
+  for (var i = 0; i < bytes.length; i += 3) {
+    var a = bytes[i];
+    var b = i+1 < bytes.length ? bytes[i+1] : 0;
+    var c = i+2 < bytes.length ? bytes[i+2] : 0;
+    b64 += B64_CHARS[(a >> 2) & 0x3F];
+    b64 += B64_CHARS[((a & 0x3) << 4) | ((b >> 4) & 0xF)];
+    b64 += i+1 < bytes.length ? B64_CHARS[((b & 0xF) << 2) | ((c >> 6) & 0x3)] : '=';
+    b64 += i+2 < bytes.length ? B64_CHARS[c & 0x3F] : '=';
+  }
+  return b64;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// CHUNK MODE
+// Detected via ?action=get_chunk in URL — skips all normal UI
+// ════════════════════════════════════════════════════════════════════════════
+var IS_CHUNK_MODE = (getParam('action') === 'get_chunk');
+
+if (IS_CHUNK_MODE) {
   document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('normalUI').style.display    = 'none';
-    document.getElementById('chunkScreen').className = 'chunk-screen show';
+    document.getElementById('normalUI').style.display = 'none';
+    document.getElementById('chunkScreen').className  = 'chunk-screen show';
 
-    var slot   = parseInt(getParam('slot'),   10);
-    var offset = parseInt(getParam('offset'), 10);
-    var CHUNK = 3496;
+    var slot      = parseInt(getParam('slot'),   10);
+    var offset    = parseInt(getParam('offset'), 10);
+    var CHUNK     = 3496; // multiple of 4 for base64 alignment
     var returnURL = getReturnURL();
 
-    // Show progress
     document.getElementById('chunkSub').textContent =
-      'slot ' + slot + '  ·  offset ' + offset;
+      'slot ' + slot + '  offset ' + offset;
 
-    // Read image from localStorage
     var images, item;
     try {
       images = JSON.parse(localStorage.getItem('pf_images') || '{}');
       item   = images[slot];
-    } catch(e) {
-      item = null;
-    }
+    } catch(e) { item = null; }
 
     if (!item || !item.dataURL) {
       document.location = returnURL +
         encodeURIComponent(JSON.stringify({
-          action: 'chunk_error',
-          slot:   slot,
-          reason: 'not_found'
+          action: 'chunk_error', slot: slot, reason: 'not_found'
         }));
       return;
     }
 
-    // Get just the base64 string, strip the data URI prefix
     var b64   = item.dataURL.split(',')[1];
     var total = b64.length;
     var chunk = b64.substring(offset, offset + CHUNK);
@@ -588,47 +566,33 @@
 
     document.getElementById('chunkProgFill').style.width = pct + '%';
     document.getElementById('chunkSub').textContent =
-      'slot ' + slot + '  ·  ' + (offset + chunk.length) + ' / ' + total + ' chars  (' + pct + '%)';
+      'slot ' + slot + '  ' + (offset + chunk.length) + '/' + total + ' (' + pct + '%)';
 
-    // Small delay so the progress UI is visible, then close with chunk data
     setTimeout(function() {
       document.location = returnURL +
         encodeURIComponent(JSON.stringify({
-          action:  'chunk',
-          slot:    slot,
-          offset:  offset,
-          total:   total,
-          data:    chunk
+          action: 'chunk',
+          slot:   slot,
+          offset: offset,
+          total:  total,
+          data:   chunk
         }));
     }, 150);
   });
-
-  // Stop the rest of the script from running in chunk mode
-  // by wrapping everything else in a DOMContentLoaded guard
-  // (handled below — normal UI init checks for chunk mode too)
-})();
+}
 
 // ════════════════════════════════════════════════════════════════════════════
 // NORMAL UI MODE
-// Only runs when action !== 'get_chunk'
 // ════════════════════════════════════════════════════════════════════════════
-
-// Guard: don't init normal UI if we're in chunk mode
-var IS_CHUNK_MODE = (location.search.indexOf('action=get_chunk') !== -1);
-
 if (!IS_CHUNK_MODE) {
 
-// ── Logging ────────────────────────────────────────────────────────────────
 var logEl = document.getElementById('log');
 function dbg(msg) {
   console.log('[PF] ' + msg);
-  if (logEl) {
-    logEl.textContent += '\n' + msg;
-    logEl.scrollTop = logEl.scrollHeight;
-  }
+  if (logEl) { logEl.textContent += '\n' + msg; logEl.scrollTop = logEl.scrollHeight; }
 }
 dbg('Normal UI mode');
-dbg('Pebble available: ' + (typeof Pebble !== 'undefined'));
+dbg('Pebble: ' + (typeof Pebble !== 'undefined'));
 
 // ── Tabs ───────────────────────────────────────────────────────────────────
 function switchTab(name) {
@@ -639,7 +603,7 @@ function switchTab(name) {
   if (name === 'saved') renderSavedList();
 }
 
-// ── Pebble 64-color palette + Floyd-Steinberg dither ──────────────────────
+// ── Pebble 64-color palette + Floyd-Steinberg ──────────────────────────────
 var PALETTE = (function() {
   var p = [];
   for (var r=0;r<4;r++) for (var g=0;g<4;g++) for (var b=0;b<4;b++)
@@ -679,19 +643,12 @@ var currentDataURL = null;
 var currentBytes   = null;
 
 // ── localStorage helpers ───────────────────────────────────────────────────
-// pf_images      → { "0": {key, dataURL, size, savedAt}, "1": {...} }
-// pf_next_slot   → integer, auto-increments
-// pf_active_slot → integer, which slot is active
-
 function getImages() {
   try { return JSON.parse(localStorage.getItem('pf_images') || '{}'); }
   catch(e) { return {}; }
 }
 function setImages(obj) { localStorage.setItem('pf_images', JSON.stringify(obj)); }
-
-function getNextSlot() {
-  return parseInt(localStorage.getItem('pf_next_slot') || '0', 10);
-}
+function getNextSlot() { return parseInt(localStorage.getItem('pf_next_slot') || '0', 10); }
 function bumpNextSlot() {
   var n = getNextSlot();
   localStorage.setItem('pf_next_slot', String(n + 1));
@@ -701,9 +658,7 @@ function getActiveSlot() {
   var v = localStorage.getItem('pf_active_slot');
   return v !== null ? parseInt(v, 10) : -1;
 }
-function setActiveSlot(slot) {
-  localStorage.setItem('pf_active_slot', String(slot));
-}
+function setActiveSlot(slot) { localStorage.setItem('pf_active_slot', String(slot)); }
 function updateSavedCount() {
   var n = Object.keys(getImages()).length;
   document.getElementById('saved-count').textContent = n > 0 ? '(' + n + ')' : '';
@@ -722,7 +677,6 @@ function showProg(show, pct, label) {
 function loadURL() {
   var url = document.getElementById('urlInput').value.trim();
   if (!url) return;
-
   currentDataURL = null;
   currentBytes   = null;
   document.getElementById('btnSend').disabled = true;
@@ -737,7 +691,7 @@ function loadURL() {
     processImage(img);
   };
   img.onerror = function() {
-    dbg('img tag failed, trying XHR fallback…');
+    dbg('img tag failed, trying XHR…');
     loadViaXHR(url);
   };
   img.src = url;
@@ -756,7 +710,7 @@ function loadViaXHR(url) {
         dbg('XHR ok: ' + img.width + 'x' + img.height);
         processImage(img);
       };
-      img.onerror = function() { showProg(false); dbg('ERROR: XHR blob also failed'); };
+      img.onerror = function() { showProg(false); dbg('ERROR: XHR blob failed'); };
       img.src = blobURL;
     } else {
       showProg(false);
@@ -767,9 +721,9 @@ function loadViaXHR(url) {
   xhr.send();
 }
 
-// ── Process: scale → dither → encode PNG ──────────────────────────────────
+// ── Process: scale → dither → indexed PNG ─────────────────────────────────
 function processImage(img) {
-  showProg(true, 25, 'Scaling to 180×180…');
+  showProg(true, 25, 'Scaling to 180x180…');
   var work = document.getElementById('work');
   var wctx = work.getContext('2d');
   var size = Math.min(img.width, img.height);
@@ -780,58 +734,43 @@ function processImage(img) {
   setTimeout(function() {
     floydSteinberg(wctx, 180, 180);
 
+    // Update watch preview
     document.getElementById('previewCanvas')
       .getContext('2d').drawImage(work, 0,0,180,180, 0,0,130,130);
     document.getElementById('previewArea').className = 'preview-area show';
 
-    showProg(true, 75, 'Encoding indexed PNG…');
-      setTimeout(function() {
-      
-        // Build 8-bit indexed PNG directly — much smaller than canvas toDataURL
+    showProg(true, 75, 'Building indexed PNG…');
+    setTimeout(function() {
+      try {
+        // Build 8-bit indexed PNG — much smaller than 32-bit RGBA from toDataURL
         var pngBytes = buildIndexedPNG(wctx, 180, 180);
-      
-        // Convert to base64 manually (no btoa in some environments)
-        var b64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-        var b64 = '';
-        for (var i = 0; i < pngBytes.length; i += 3) {
-          var a = pngBytes[i];
-          var b = i+1 < pngBytes.length ? pngBytes[i+1] : 0;
-          var c = i+2 < pngBytes.length ? pngBytes[i+2] : 0;
-          b64 += b64chars[(a >> 2) & 0x3F];
-          b64 += b64chars[((a & 0x3) << 4) | ((b >> 4) & 0xF)];
-          b64 += i+1 < pngBytes.length ? b64chars[((b & 0xF) << 2) | ((c >> 6) & 0x3)] : '=';
-          b64 += i+2 < pngBytes.length ? b64chars[c & 0x3F] : '=';
-        }
-      
-        currentDataURL = 'data:image/png;base64,' + b64;
+        var b64      = bytesToBase64(pngBytes);
+
         currentBytes   = pngBytes;
-      
-        dbg('Indexed PNG: ' + pngBytes.length + ' bytes (' + (pngBytes.length/1024).toFixed(1) + ' KB)');
+        currentDataURL = 'data:image/png;base64,' + b64;
+
+        dbg('indexed PNG: ' + pngBytes.length + ' bytes (' + (pngBytes.length/1024).toFixed(1) + ' KB)');
         document.getElementById('previewMeta').textContent =
-          '180×180 · 8-bit indexed · 64 colors\n' +
-          (pngBytes.length/1024).toFixed(1) + ' KB · tap Save & Send';
-      
+          '180x180  8-bit indexed  64 colors\n' +
+          (pngBytes.length/1024).toFixed(1) + ' KB  tap Save & Send';
+
         showProg(false);
         document.getElementById('btnSend').disabled = false;
         document.getElementById('actionRow').style.display = 'flex';
-      }, 30);
+      } catch(err) {
+        showProg(false);
+        dbg('ERROR building PNG: ' + err);
+      }
+    }, 30);
   }, 30);
 }
 
 // ── Save & Send ────────────────────────────────────────────────────────────
-// Flow:
-//   1. Save dithered PNG to localStorage as image_index_N
-//   2. Close with { action:'send', slot:N }
-//   3. app.js receives slot, opens config.html?action=get_chunk&slot=N&offset=0
-//   4. config.html returns chunk, app.js opens next offset, repeat
-//   5. app.js reassembles full base64, stores in its own localStorage
-//   6. app.js decodes and transfers bytes to watch via NETDL protocol
 function saveAndSend() {
   if (!currentDataURL || !currentBytes) { dbg('nothing to save'); return; }
 
   var slot = bumpNextSlot();
   var key  = 'image_index_' + slot;
-
   var images = getImages();
   images[slot] = {
     key:     key,
@@ -842,9 +781,8 @@ function saveAndSend() {
   setImages(images);
   setActiveSlot(slot);
   updateSavedCount();
-  dbg('saved as ' + key + ' (slot ' + slot + '), closing for chunk transfer…');
+  dbg('saved as ' + key + ' (slot ' + slot + ')');
 
-  // Close config page — app.js will open us again in chunk mode
   document.location = getReturnURL() +
     encodeURIComponent(JSON.stringify({ action: 'send', slot: slot }));
 }
@@ -867,10 +805,8 @@ function renderSavedList() {
 
   if (slots.length === 0) {
     el.innerHTML =
-      '<div class="empty-state">' +
-      '<div class="empty-icon">🖼️</div>' +
-      'No saved images yet.<br>Load an image on the New Image tab.' +
-      '</div>';
+      '<div class="empty-state"><div class="empty-icon">&#x1F5BC;</div>' +
+      'No saved images yet.<br>Load an image on the New Image tab.</div>';
     return;
   }
 
@@ -897,8 +833,8 @@ function renderSavedList() {
     info.className = 'card-info';
     info.innerHTML =
       '<div class="card-name">' + escHtml(item.key) + '</div>' +
-      '<div class="card-meta">' + (item.size/1024).toFixed(1) + ' KB · ' + item.savedAt + '</div>' +
-      (isActive ? '<div class="card-active-badge">● on watch</div>' : '');
+      '<div class="card-meta">' + (item.size/1024).toFixed(1) + ' KB  ' + item.savedAt + '</div>' +
+      (isActive ? '<div class="card-active-badge">on watch</div>' : '');
 
     var actions = document.createElement('div');
     actions.className = 'card-actions';
@@ -906,16 +842,12 @@ function renderSavedList() {
     var sendBtn = document.createElement('button');
     sendBtn.className = 'card-btn card-btn-send';
     sendBtn.textContent = 'Send';
-    sendBtn.onclick = (function(s) {
-      return function() { sendSavedSlot(s); };
-    })(parseInt(slot, 10));
+    sendBtn.onclick = (function(s) { return function() { sendSavedSlot(s); }; })(parseInt(slot,10));
 
     var delBtn = document.createElement('button');
     delBtn.className = 'card-btn card-btn-del';
-    delBtn.textContent = '✕';
-    delBtn.onclick = (function(s) {
-      return function() { deleteImage(s); };
-    })(slot);
+    delBtn.textContent = 'X';
+    delBtn.onclick = (function(s) { return function() { deleteImage(s); }; })(slot);
 
     actions.appendChild(sendBtn);
     actions.appendChild(delBtn);
@@ -930,9 +862,7 @@ function deleteImage(slot) {
   var images = getImages();
   delete images[slot];
   setImages(images);
-  if (getActiveSlot() === parseInt(slot, 10)) {
-    localStorage.removeItem('pf_active_slot');
-  }
+  if (getActiveSlot() === parseInt(slot, 10)) localStorage.removeItem('pf_active_slot');
   renderSavedList();
   dbg('deleted slot ' + slot);
 }
@@ -949,16 +879,6 @@ function showTransfer(show, pct, label) {
     document.getElementById('transferFill').style.width = pct + '%';
     document.getElementById('transferLabel').textContent = label || '';
   }
-}
-
-// ── Return URL ─────────────────────────────────────────────────────────────
-function getReturnURL() {
-  var q = location.search.substring(1).split('&');
-  for (var i=0; i<q.length; i++) {
-    var p = q[i].split('=');
-    if (decodeURIComponent(p[0]) === 'return_to') return decodeURIComponent(p[1]);
-  }
-  return 'pebblejs://close#';
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
